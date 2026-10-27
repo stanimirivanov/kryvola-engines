@@ -17,6 +17,8 @@ cargo run --locked -p kryvola-engine-api --example inspect
 
 No service credentials or local databases are required for this scope. `spec.lock.json` pins immutable generated spec artifacts; a sibling checkout is unnecessary. Generated structural types are not native decoders or authorization. [Architecture and enforcement](docs/architecture.md), [progress](docs/progress.md), and the source references below describe limits.
 
+M0-PR15 adds a [test-only fake EngineService](docs/fake-engine.md). Run `cargo run --locked -p kryvola-fake-engine -- conformance` for bounded loopback RPC conformance. This simulates metadata/status only; it provides no cryptographic capability or real output artifact. Heavy compilation/conformance checks run through the full CI harness.
+
 ## Authoritative context
 
 - [Design v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-design-v2.md)

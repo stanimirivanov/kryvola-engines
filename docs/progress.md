@@ -22,3 +22,9 @@ Root AGENTS.md discovery through nested working directories and local documentat
 Blocked foundation work: none. Deferred roadmap items and remote CI/maintainer settings above remain explicit; this evidence does not qualify a production crypto engine, state machine or deployment.
 
 Final harness-only normalization of package names and direct local URI dependencies was verified with Ruff, ty and the Python suite. Native code and package runtime content were unchanged after their passing build/clean-install checks.
+
+## M0-PR15: test-only Engine RPC conformance
+
+27 October 2026, issue #3: adopted immutable spec `1a5b57a590487ba116913050af8041f5e5f1fb52` / `0.1.0-preview.10`, complete generated/native manifests and cross-bundle integrity checks. The [fake engine](fake-engine.md) adds generated RPCs with a strict raw-byte codec, fixed synthetic identity/response marker, bounded retained execution/tombstone state, replay/conflict handling, deterministic clock/status, cancellation races and an ephemeral loopback conformance command. No real inference, ciphertext/proof processing, production capability registration, persistence or release authorization is implemented; M0 remains partial.
+
+Local verification covers formatting, Python lint/types, six architecture/provenance negative tests and locked Cargo metadata. All Rust compilation, Clippy/tests, RPC execution and C++ build/tests are delegated to the existing PR CI full harness; hosted results are not claimed. The new full-harness command and 25-minute CI timeout accommodate the pinned RPC dependency build without running it on the busy local machine.

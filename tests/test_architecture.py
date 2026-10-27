@@ -10,7 +10,12 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tools.architecture import REQUIRED_ARTIFACTS, dependency_errors, verify_contracts
+from tools.architecture import (
+    REQUIRED_ARTIFACTS,
+    REQUIRED_NATIVE_ARTIFACTS,
+    dependency_errors,
+    verify_contracts,
+)
 
 
 class ArchitectureTests(unittest.TestCase):
@@ -27,6 +32,25 @@ class ArchitectureTests(unittest.TestCase):
             entries[name] = hashlib.sha256(data).hexdigest()
         manifest = json.dumps({"contract_version": "fixture", "files": entries}).encode()
         (vendor / "manifest.json").write_bytes(manifest)
+        native = root / "contracts/native"
+        native.mkdir(parents=True)
+        for name in REQUIRED_NATIVE_ARTIFACTS:
+            target = native / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        bindings = json.dumps(
+            {
+                "contract_version": "fixture",
+                "files": {
+                    name: hashlib.sha256(data).hexdigest() for name in REQUIRED_NATIVE_ARTIFACTS
+                },
+                "sources": {
+                    "generated/" + name: hashlib.sha256((vendor / name).read_bytes()).hexdigest()
+                    for name in ["manifest.json", *entries]
+                },
+            }
+        ).encode()
+        (native / "manifest.json").write_bytes(bindings)
         (root / "spec.lock.json").write_text(
             json.dumps(
                 {
@@ -35,6 +59,8 @@ class ArchitectureTests(unittest.TestCase):
                     "revision": "a" * 40,
                     "artifact_root": "contracts/spec",
                     "manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+                    "native_artifact_root": "contracts/native",
+                    "native_manifest_sha256": hashlib.sha256(bindings).hexdigest(),
                 }
             ),
             encoding="utf-8",
@@ -52,6 +78,29 @@ class ArchitectureTests(unittest.TestCase):
             self.fixture(root)
             verify_contracts(root)
             self.assertEqual(dependency_errors(root, "kryvola-ml"), [])
+
+    def test_native_bundle_tamper_fails(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            (root / "contracts/native/descriptor.bin").write_bytes(b"tampered")
+            with self.assertRaisesRegex(ValueError, "modified native"):
+                verify_contracts(root)
+
+    def test_individually_hashed_bundles_must_correlate(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            manifest = root / "contracts/native/manifest.json"
+            value = json.loads(manifest.read_bytes())
+            value["sources"]["generated/limits.json"] = "b" * 64
+            manifest.write_text(json.dumps(value), encoding="utf-8")
+            lock_path = root / "spec.lock.json"
+            lock = json.loads(lock_path.read_bytes())
+            lock["native_manifest_sha256"] = hashlib.sha256(manifest.read_bytes()).hexdigest()
+            lock_path.write_text(json.dumps(lock), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "mixed generated/native"):
+                verify_contracts(root)
 
     def test_modified_contract_and_missing_inputs_fail(self) -> None:
         with TemporaryDirectory() as directory:

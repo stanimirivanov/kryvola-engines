@@ -31,6 +31,8 @@ def main() -> None:
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v")
         if REPO in {"kryvola-fabric", "kryvola-engines"}:
             run("cargo", "test", "--locked", "--workspace")
+            if REPO == "kryvola-engines":
+                run("cargo", "run", "--locked", "-p", "kryvola-fake-engine", "--", "conformance")
         if REPO == "kryvola-engines":
             run("cmake", "-S", "cpp", "-B", "build/cpp", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug")
             run("cmake", "--build", "build/cpp")

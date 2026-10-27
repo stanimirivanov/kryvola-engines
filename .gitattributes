@@ -1,1 +1,4 @@
 * text=auto eol=lf
+*.bin binary
+contracts/native/** whitespace=-blank-at-eof
+contracts/** linguist-generated=true

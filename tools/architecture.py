@@ -15,6 +15,9 @@ REPO = "kryvola-engines"
 IMPLEMENTATIONS = {"kryvola_fabric", "kryvola_engines", "kryvola_ml", "kryvola_platform"}
 
 REQUIRED_ARTIFACTS = {
+    "control/Operation.schema.json",
+    "engine/ExecuteRequest.schema.json",
+    "profiles/ModelDescriptor.schema.json",
     "python/limits.py",
     "artifact-ref.schema.json",
     "limits.json",
@@ -26,6 +29,13 @@ REQUIRED_ARTIFACTS = {
     "proto/kryvola/spec/v1/artifact_ref.proto",
     "cpp/limits.hpp",
     "python/artifact_ref.py",
+}
+REQUIRED_NATIVE_ARTIFACTS = {
+    "descriptor.bin",
+    "schemas.json",
+    "vectors.json",
+    "fixtures.json",
+    "rust/kryvola.spec.v1.rs",
 }
 
 
@@ -65,6 +75,39 @@ def verify_contracts(root: Path) -> None:
             raise ValueError(f"contracts: unsafe manifest path {name}")
         if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             raise ValueError(f"contracts: modified generated artifact {name}")
+    native = (root / lock["native_artifact_root"]).resolve()
+    if not native.is_relative_to(root.resolve()):
+        raise ValueError("contracts: native root escapes repository")
+    raw = (native / "manifest.json").read_bytes()
+    if hashlib.sha256(raw).hexdigest() != lock["native_manifest_sha256"]:
+        raise ValueError("contracts: native manifest digest mismatch")
+    bindings = json.loads(raw)
+    if bindings["contract_version"] != lock[
+        "contract_version"
+    ] or not REQUIRED_NATIVE_ARTIFACTS.issubset(bindings["files"]):
+        raise ValueError("contracts: native version or required artifacts mismatch")
+    if {p.relative_to(native).as_posix() for p in native.rglob("*") if p.is_file()} != {
+        "manifest.json",
+        *bindings["files"],
+    }:
+        raise ValueError("contracts: missing or unlisted native artifacts")
+    for name, digest in bindings["files"].items():
+        path = (native / name).resolve()
+        if (
+            not path.is_relative_to(native)
+            or hashlib.sha256(path.read_bytes()).hexdigest() != digest
+        ):
+            raise ValueError("contracts: modified native artifact")
+    generated_sources = {
+        name.removeprefix("generated/"): digest
+        for name, digest in bindings["sources"].items()
+        if name.startswith("generated/")
+    }
+    if set(generated_sources) != expected or any(
+        hashlib.sha256((vendor / name).read_bytes()).hexdigest() != digest
+        for name, digest in generated_sources.items()
+    ):
+        raise ValueError("contracts: mixed generated/native bundles")
 
 
 def dependency_errors(root: Path, repo: str) -> list[str]:

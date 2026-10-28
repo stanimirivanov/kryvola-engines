@@ -50,6 +50,8 @@ Core proof, checks its exact journal and requires SP1's successful execution sta
 guest identity, another guest's verifying key, a real proof of non-successful
 execution, an empty mock Core proof, mock mode and dev mode. The final two are
 selection guards; the journal/key/outcome negatives call the real verifier.
+The failed-execution control explicitly requests exit code 1, verifies that
+failure proof under code 1, then requires success-only verification to reject it.
 The report binds guest digest, verifying-key digest, journal digest/size, actual
 serialized proof size, mode, outcome, limits and proving/verification time. These
 are single-run observations, not a service-latency or proof-system comparison.
@@ -69,3 +71,13 @@ and the hosted SP1 job 90 minutes. OOM, timeout, unavailable Docker or build/pro
 failure rejects the gate; execute-only or mock fallback never satisfies it.
 Production resource/side-channel/cryptographic review and release/legal gates
 remain pending. APIs were checked against the [pinned SDK source](https://github.com/succinctlabs/sp1/tree/b8387fa61e1361d90ee7de49f551863418ca0f08/crates/sdk).
+
+Runtime diagnostics expose fixed stage IDs and error categories, process exit
+status (negative values indicate signals), timeout and memory-error markers.
+Stage IDs are 1 preparation, 2 CPU initialization, 3 key setup, 4 successful
+proving, 5 journal checks, 6 verification, 7 journal rejection, 8 program/key
+rejection, 9 failed-execution proving, 10 failed-outcome rejection, 11 mock/dev
+rejection and 12 serialization/report. Stderr is filtered from bounded file ends;
+arbitrary SDK error strings, proof data and witness bytes are never forwarded.
+An invalid final report has its own marker. A dependency future-Rust warning
+after a successful build does not identify the cause of a runtime rejection.

@@ -106,8 +106,13 @@ def report(raw: bytes) -> dict:
 def _run(command, cwd, env, timeout, **kwargs):
     child = subprocess.Popen(command, cwd=cwd, env=env, start_new_session=True, **kwargs)
     try:
-        if child.wait(timeout=timeout) != 0:
+        status = child.wait(timeout=timeout)
+        if status != 0:
+            print(f"KRY_SP1_EXIT={status}", file=sys.stderr)
             raise ValueError("SP1_STAGE_FAILED")
+    except subprocess.TimeoutExpired:
+        print("KRY_SP1_TIMEOUT", file=sys.stderr)
+        raise
     finally:
         if sys.platform == "linux":
             try:
@@ -115,6 +120,24 @@ def _run(command, cwd, env, timeout, **kwargs):
             except ProcessLookupError:
                 pass
         child.wait()
+
+
+def _diagnostics(path: Path) -> None:
+    # Read bounded ends of the file. Never forward arbitrary SDK errors or proof data.
+    with path.open("rb") as stream:
+        raw = stream.read(65_536)
+        if stream.seek(0, 2) > 65_536:
+            stream.seek(-65_536, 2)
+            raw += stream.read(65_536)
+    allowed = (
+        rb"KRY_SP1_(?:STAGE|PANIC)=(?:[0-9]|1[0-2])|"
+        rb"KRY_SP1_ERROR=(?:EXECUTION|PROVER|UNEXPECTED|VERIFY|OTHER)"
+    )
+    for line in raw.splitlines():
+        if re.fullmatch(allowed, line):
+            print(line.decode("ascii"), file=sys.stderr)
+    if b"memory allocation" in raw.lower() or b"out of memory" in raw.lower():
+        print("KRY_SP1_MEMORY_ERROR", file=sys.stderr)
 
 
 def _limits():
@@ -210,21 +233,30 @@ def execute() -> dict:
     )
     with TemporaryDirectory(prefix="kryvola-sp1-") as directory:
         temporary = Path(directory)
-        with (temporary / "report.json").open("wb") as stream:
-            _run(
-                [str(host_target / "release/kryvola-sp1-host"), str(temporary / "proof.bin")],
-                temporary,
-                {
-                    "PATH": os.defpath,
-                    "HOME": directory,
-                    "SP1_PROVER": "cpu",
-                    "RAYON_NUM_THREADS": "2",
-                },
-                900,
-                stdout=stream,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-                preexec_fn=_limits,
-            )
+        diagnostic = temporary / "stderr.log"
+        with (temporary / "report.json").open("wb") as stream, diagnostic.open("wb") as errors:
+            try:
+                _run(
+                    [str(host_target / "release/kryvola-sp1-host"), str(temporary / "proof.bin")],
+                    temporary,
+                    {
+                        "PATH": os.defpath,
+                        "HOME": directory,
+                        "SP1_PROVER": "cpu",
+                        "RAYON_NUM_THREADS": "2",
+                    },
+                    900,
+                    stdout=stream,
+                    stderr=errors,
+                    stdin=subprocess.DEVNULL,
+                    preexec_fn=_limits,
+                )
+            finally:
+                errors.flush()
+                _diagnostics(diagnostic)
         with (temporary / "report.json").open("rb") as stream:
-            return report(stream.read(8193))
+            try:
+                return report(stream.read(8193))
+            except ValueError:
+                print("KRY_SP1_REPORT_REJECTED", file=sys.stderr)
+                raise

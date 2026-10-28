@@ -9,6 +9,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -35,6 +36,31 @@ def fixture():
 
 
 class Sp1RelationTests(unittest.TestCase):
+    def test_runtime_diagnostics_are_bounded_and_do_not_forward_sdk_payloads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "stderr.log"
+            path.write_bytes(
+                b"KRY_SP1_STAGE=4\nprivate-proof: DO_NOT_LOG\n"
+                + b"x" * 131_072
+                + b"\nKRY_SP1_ERROR=EXECUTION\n"
+                b"KRY_SP1_PANIC=999\nmemory allocation of 100 bytes failed\n"
+            )
+            output = io.StringIO()
+            with redirect_stderr(output):
+                sp1_relation._diagnostics(path)
+            self.assertEqual(
+                output.getvalue().splitlines(),
+                ["KRY_SP1_STAGE=4", "KRY_SP1_ERROR=EXECUTION", "KRY_SP1_MEMORY_ERROR"],
+            )
+
+    def test_failed_subprocess_exposes_exit_status(self):
+        output = io.StringIO()
+        with redirect_stderr(output), self.assertRaisesRegex(ValueError, "SP1_STAGE_FAILED"):
+            sp1_relation._run(
+                [sys.executable, "-c", "raise SystemExit(7)"], ROOT, dict(os.environ), 10
+            )
+        self.assertEqual(output.getvalue().strip(), "KRY_SP1_EXIT=7")
+
     def test_host_build_and_launch_survive_a_blocked_docker_target(self):
         archive = io.BytesIO()
         with tarfile.open(fileobj=archive, mode="w:gz") as tar:

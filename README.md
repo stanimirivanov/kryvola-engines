@@ -38,6 +38,12 @@ immutable ML snapshot offline. Full Linux CI evaluates all 100 frozen cases with
 separate owner/evaluator processes and retains numeric stage/RSS observations.
 PBS/GPU measurements remain explicitly unavailable; no profile is enabled.
 
+M0-PR21 adds a [compact-input proof experiment](docs/tfhe-compact.md).
+`uv run --locked python tools/feasibility.py tfhe-compact --check-only` verifies
+the research feature/backend pins. Full Linux CI compares native/compact/proven
+representations and requires public-context/proof/admission rejections. These
+input-validity proofs do not prove inference correctness or authorize release.
+
 ## Authoritative context
 
 - [Design v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-design-v2.md)

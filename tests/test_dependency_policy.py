@@ -74,7 +74,8 @@ class DependencyPolicyTests(unittest.TestCase):
         manifest = self.root / "Cargo.toml"
         baseline = manifest.read_text()
         exact = (
-            'tfhe={version="=1.8.1",default-features=false,features=["integer","software-prng"]}'
+            'tfhe={version="=1.8.1",default-features=false,'
+            'features=["integer","software-prng","zk-pok"]}'
         )
         manifest.write_text(baseline + "[dependencies]\n" + exact + "\n")
         validate(self.root)

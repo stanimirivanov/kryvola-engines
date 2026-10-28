@@ -27,6 +27,7 @@ def main() -> None:
     run(sys.executable, "tools/dependency_policy.py")
     run(sys.executable, "tools/feasibility.py", "tfhe-codec", "--check-only")
     run(sys.executable, "tools/feasibility.py", "tfhe-eval", "--check-only")
+    run(sys.executable, "tools/feasibility.py", "tfhe-compact", "--check-only")
     if REPO in {"kryvola-fabric", "kryvola-engines"}:
         run("cargo", "fmt", "--all", "--check")
         run("cargo", "fmt", "--manifest-path", "experiments/tfhe/Cargo.toml", "--all", "--check")
@@ -43,6 +44,7 @@ def main() -> None:
             run("ctest", "--test-dir", "build/cpp", "--output-on-failure")
             run(sys.executable, "tools/feasibility.py", "tfhe-codec")
             run(sys.executable, "tools/feasibility.py", "tfhe-eval")
+            run(sys.executable, "tools/feasibility.py", "tfhe-compact")
         else:
             run("uv", "build", "--no-build-isolation", "--wheel")
 

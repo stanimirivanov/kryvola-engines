@@ -1,0 +1,12 @@
+[package]
+name = "kryvola-sp1-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+sp1-sdk = { version = "=6.9.0", default-features = false, features = [] }
+sp1-core-executor = { version = "=6.9.0", default-features = false }
+tokio = { version = "=1.52.1", features = ["rt-multi-thread", "macros"] }
+blake3 = "=1.8.7"
+kryvola-sp1-statement = { path = "../statement" }

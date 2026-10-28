@@ -44,6 +44,12 @@ the research feature/backend pins. Full Linux CI compares native/compact/proven
 representations and requires public-context/proof/admission rejections. These
 input-validity proofs do not prove inference correctness or authorize release.
 
+M0-PR22 adds an isolated [SP1 public-metadata relation](docs/sp1-relation.md).
+`uv run --locked python tools/feasibility.py sp1-relation --check-only` performs
+offline configuration checks. A separate Linux/Docker CI job compiles pinned
+guests and requires real local CPU proof verification and negative controls.
+`full` includes this heavy gate; `native` is the existing native/TFHE portion.
+
 ## Authoritative context
 
 - [Design v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-design-v2.md)

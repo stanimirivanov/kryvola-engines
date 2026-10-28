@@ -1,5 +1,17 @@
 # Foundation progress
 
+## M0-PR22 — SP1 public-metadata relation
+
+Issue #13 adds a locked isolated SDK/guest experiment with checksum-pinned CLI
+and digest-pinned compiler image. Its fixed public journal binds statement ID,
+metadata fields, mode, outcome and cycle policy; the host binds actual guest/key
+identity and requires real CPU Core verification plus seven rejection controls.
+All inputs are public; Core proof privacy is not assumed. No native-FHE evidence
+relation or production profile is enabled. CI splits native and SP1 work while
+preserving a combined `verify` gate. Local evidence covers formatting, types,
+policy/provenance and Python mode/report controls; compilation/proving and hosted
+results remain unverified locally and are delegated to CI.
+
 ## M0-PR21 — compact-input proof feasibility
 
 Issue #11 adds the isolated research-only `zk-pok` feature and locked 0.9.0 proof

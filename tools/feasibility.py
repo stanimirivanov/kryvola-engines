@@ -14,8 +14,9 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 if __package__:
-    from . import tfhe_results
+    from . import compact_results, tfhe_results
 else:
+    import compact_results
     import tfhe_results
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +50,18 @@ def configuration(experiment: str = "tfhe-codec") -> None:
         raise ValueError("EXPERIMENT_LOCK_REQUIRED")
     if experiment == "tfhe-eval":
         tfhe_results.fixture()
+    if experiment == "tfhe-compact":
+        if "zk-pok" not in manifest["dependencies"]["tfhe"]["features"]:
+            raise ValueError("PROOF_FEATURE_REQUIRED")
+        packages = tomllib.loads(MANIFEST.with_name("Cargo.lock").read_text())["package"]
+        proof = [p for p in packages if p["name"] == "tfhe-zk-pok"]
+        if (
+            len(proof) != 1
+            or proof[0]["version"] != "0.9.0"
+            or proof[0]["checksum"]
+            != ("cd4d91594d5434b3328f435ed77db1b7d0584e91128521a0014dab923ddcffc9")
+        ):
+            raise ValueError("PROOF_BACKEND_PIN")
 
 
 def report(raw: bytes) -> dict[str, Any]:
@@ -149,7 +162,15 @@ def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
         root = Path(directory)
         with (root / "report.json").open("wb") as output:
             child = subprocess.Popen(
-                [str(binary), "frozen-owner" if experiment == "tfhe-eval" else "owner", directory],
+                [
+                    str(binary),
+                    {
+                        "tfhe-codec": "owner",
+                        "tfhe-eval": "frozen-owner",
+                        "tfhe-compact": "compact-owner",
+                    }[experiment],
+                    directory,
+                ],
                 cwd=root,
                 env={"PATH": os.defpath, "HOME": directory, "RAYON_NUM_THREADS": "2"},
                 stdin=subprocess.DEVNULL,
@@ -166,6 +187,25 @@ def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
         with (root / "report.json").open("rb") as stream:
             if experiment == "tfhe-codec":
                 return report(stream.read(8193))
+            if experiment == "tfhe-compact":
+                with binary.open("rb") as executable:
+                    binary_sha256 = hashlib.file_digest(executable, "sha256").hexdigest()
+                return {
+                    "experiment": experiment,
+                    "native": compact_results.report(stream.read(8193)),
+                    "relation": "COMPACT_PKE_INPUT_VALIDITY_ONLY",
+                    "proof_load": "Verify",
+                    "crs_setup": "LOCAL_RESEARCH_UNQUALIFIED",
+                    "production_qualified": False,
+                    "rust_toolchain": channel,
+                    "tfhe_version": "1.8.1",
+                    "native_binary_sha256": binary_sha256,
+                    "host": platform.platform(),
+                    "rayon_threads": 2,
+                    "expansion_reservation_bytes": 1 << 30,
+                    "reservation_is_estimate": True,
+                    "address_space_limit_per_process_bytes": 4 << 30,
+                }
             with binary.open("rb") as executable:
                 binary_sha256 = hashlib.file_digest(executable, "sha256").hexdigest()
             rejection = subprocess.Popen(
@@ -210,7 +250,7 @@ def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("experiment", choices=["tfhe-codec", "tfhe-eval"])
+    parser.add_argument("experiment", choices=["tfhe-codec", "tfhe-eval", "tfhe-compact"])
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()
     try:

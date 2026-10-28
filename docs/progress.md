@@ -1,5 +1,18 @@
 # Foundation progress
 
+## M0-PR21 — compact-input proof feasibility
+
+Issue #11 adds the isolated research-only `zk-pok` feature and locked 0.9.0 proof
+backend, preserving previous package versions and distribution/service denials.
+The two-uint8 experiment separates owner from public verifier/expander, binds
+setup/context, enforces conformant bounded decoding and requires six negatives.
+Reports distinguish representation bytes, proving, verification and combined
+verified-expansion timing; no inference/ownership proof or activation is claimed.
+Local evidence covers automatic formatting/lint, types, research policy and
+focused report/dependency controls. Native compilation, actual proof generation,
+verification, expansion/decryption comparisons and full checks run on CI; no
+hosted pass is claimed. CRS/parameter/legal/production review remains pending.
+
 ## M0-PR20 — frozen quantized circuit feasibility
 
 Issue #9 pins ML's public fixture at `dcba320678eb454047e29c8a42417ffe8d94a323`.

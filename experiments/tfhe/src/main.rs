@@ -43,6 +43,7 @@ macro_rules! encode {
     }};
 }
 
+mod compact;
 mod frozen;
 
 fn need(condition: bool, code: i32) -> Result<()> {
@@ -308,6 +309,12 @@ fn run() -> Result<()> {
     let root = args.get(2).ok_or(TEST).map(Path::new)?;
     match args.get(1).and_then(|v| v.to_str()) {
         Some("owner") if args.len() == 3 => owner(root),
+        Some("compact-owner") if args.len() == 3 => compact::owner(root),
+        Some("compact-verifier") if args.len() == 4 => {
+            let context =
+                blake3::Hash::from_hex(args[3].to_str().ok_or(TEST)?).map_err(|_| TEST)?;
+            compact::verifier(root, context)
+        }
         Some("frozen-owner") if args.len() == 3 => frozen::owner(root),
         Some("frozen-evaluator") if args.len() == 6 => {
             need(

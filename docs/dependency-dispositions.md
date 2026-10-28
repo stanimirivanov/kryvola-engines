@@ -92,3 +92,8 @@ by this first gate; isolated experiments should declare their explicit pins.
 Deferred direct GPU/alternative dependencies fail. This static sensor is not full
 Cargo feature resolution, a transitive SBOM, CMake/Python dependency enforcement
 or proof of legal rights. Publication gates retain those responsibilities.
+
+M0-PR21 records `zk-pok` in the isolated TFHE research feature set and locks its
+optional proof backend. The [compact experiment](tfhe-compact.md) describes its
+additional dependency weight and unqualified setup. Existing TFHE/SP1 versions,
+licensing dispositions and distribution/service denials remain unchanged.

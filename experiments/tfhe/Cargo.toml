@@ -10,7 +10,7 @@ publish = false
 [workspace]
 
 [dependencies]
-tfhe = { version = "=1.8.1", default-features = false, features = ["integer", "software-prng"] }
+tfhe = { version = "=1.8.1", default-features = false, features = ["integer", "software-prng", "zk-pok"] }
 blake3 = "=1.8.7"
 
 [profile.release]

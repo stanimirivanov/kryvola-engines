@@ -54,7 +54,8 @@
       "legal_review": "PENDING",
       "features": [
         "integer",
-        "software-prng"
+        "software-prng",
+        "zk-pok"
       ],
       "default_features": false,
       "compatibility": {

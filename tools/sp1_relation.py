@@ -134,6 +134,8 @@ def execute() -> dict:
         raise ValueError("SP1_REQUIRES_LINUX_X86_64_DOCKER")
     output = ROOT / "build/sp1"
     output.mkdir(parents=True, exist_ok=True)
+    host_target = output / "host-target"
+    host_target.mkdir(exist_ok=True)
     # Verify the archive before reading its sole executable; no archive paths are extracted.
     archive = output / "cargo-prove.tar.gz"
     with urllib.request.urlopen(CLI_URL, timeout=60) as source, archive.open("wb") as target:
@@ -191,6 +193,8 @@ def execute() -> dict:
             str(WORK / "Cargo.toml"),
             "--locked",
             "--release",
+            "--target-dir",
+            str(host_target),
             "--jobs",
             "1",
             "-p",
@@ -204,7 +208,7 @@ def execute() -> dict:
         temporary = Path(directory)
         with (temporary / "report.json").open("wb") as stream:
             _run(
-                [str(WORK / "target/release/kryvola-sp1-host"), str(temporary / "proof.bin")],
+                [str(host_target / "release/kryvola-sp1-host"), str(temporary / "proof.bin")],
                 temporary,
                 {
                     "PATH": os.defpath,

@@ -17,6 +17,9 @@ with archive SHA-256 `0eb8a2b3eef9b498443a338a545422a7acd37ee08d17d784a9c16f4c0b
 The guest compiler image is pinned to the Linux/amd64 manifest
 `ghcr.io/succinctlabs/sp1@sha256:6d90b1692f07519817533bafeefd6ea3d1c4c0d1cd7cffe9844d2ae37d034b08`.
 No mutable installer script or global custom toolchain installation is used.
+The Docker guest target remains inside the isolated workspace. The native host
+uses the explicit runner-owned `build/sp1/host-target` for both Cargo output and
+binary launch, keeping container-owned guest output out of the host build path.
 Archive extraction accepts only a bounded regular executable, after checksum
 verification. Compiler/CLI provenance is a research pin, not publisher attestation.
 

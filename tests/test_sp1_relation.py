@@ -1,12 +1,18 @@
 """Offline statement/report/mode controls; real SP1 proofs are required on CI."""
 
+import hashlib
+import io
 import json
 import os
 import subprocess
 import sys
+import tarfile
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
+from tools import sp1_relation
 from tools.sp1_relation import JOURNAL_BYTES, ROOT, configuration, report
 
 
@@ -29,6 +35,48 @@ def fixture():
 
 
 class Sp1RelationTests(unittest.TestCase):
+    def test_host_build_and_launch_survive_a_blocked_docker_target(self):
+        archive = io.BytesIO()
+        with tarfile.open(fileobj=archive, mode="w:gz") as tar:
+            member = tarfile.TarInfo("cargo-prove")
+            member.size = 3
+            tar.addfile(member, io.BytesIO(b"cli"))
+        raw = archive.getvalue()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            work = root / "experiments/sp1"
+            (work / "guest").mkdir(parents=True)
+            # A file at this location blocks all host writes below the guest's target.
+            (work / "target").write_text("Docker-owned target")
+            calls = []
+
+            def simulate(command, cwd, env, timeout, **kwargs):
+                calls.append(command)
+                if "--docker" in command:
+                    destination = Path(command[command.index("--output-directory") + 1])
+                    (destination / command[command.index("--elf-name") + 1]).write_bytes(b"elf")
+                elif command[0] == "cargo":
+                    destination = Path(command[command.index("--target-dir") + 1])
+                    self.assertFalse(destination.is_relative_to(work / "target"))
+                    (destination / "release").mkdir()
+                    (destination / "release/kryvola-sp1-host").write_bytes(b"host")
+                else:
+                    self.assertTrue(Path(command[0]).is_file())
+                    kwargs["stdout"].write(json.dumps(fixture()).encode())
+
+            with (
+                patch.object(sp1_relation, "ROOT", root),
+                patch.object(sp1_relation, "WORK", work),
+                patch.object(sp1_relation, "CLI_SHA256", hashlib.sha256(raw).hexdigest()),
+                patch.object(sp1_relation.platform, "system", return_value="Linux"),
+                patch.object(sp1_relation.platform, "machine", return_value="x86_64"),
+                patch.object(sp1_relation.urllib.request, "urlopen", return_value=io.BytesIO(raw)),
+                patch.object(sp1_relation, "_run", side_effect=simulate),
+            ):
+                self.assertEqual(sp1_relation.execute(), fixture())
+            self.assertEqual(len(calls), 4)
+            self.assertEqual((work / "target").read_text(), "Docker-owned target")
+
     def test_closed_report_rejects_wrong_modes_bindings_limits_and_outcomes(self):
         self.assertEqual(report(json.dumps(fixture()).encode()), fixture())
         for change in (

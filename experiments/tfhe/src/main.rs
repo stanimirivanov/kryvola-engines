@@ -2,7 +2,7 @@
 #![deny(warnings)]
 
 use std::fs::{self, File};
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Read};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};

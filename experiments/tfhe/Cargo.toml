@@ -1,0 +1,20 @@
+[package]
+name = "kryvola-tfhe-codec-experiment"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+publish = false
+
+# Keep heavy crypto resolution/builds outside the ordinary engine workspace.
+[workspace]
+
+[dependencies]
+tfhe = { version = "=1.8.1", default-features = false, features = ["integer", "software-prng"] }
+blake3 = "=1.8.7"
+
+[profile.release]
+opt-level = 1
+debug = 0
+lto = false
+codegen-units = 64

@@ -23,6 +23,12 @@ distribution and commercial service are distinct classes; only research candidat
 are admitted. Recorded compiler minimums and unbuilt matrix rows establish no
 runtime compatibility, patent rights or production qualification.
 
+[M0-PR19](tfhe-codec.md) isolates TFHE dependencies in `experiments/tfhe`, outside
+the main Cargo workspace. Its owner/evaluator fixture checks bounded artifact
+framing, trusted owner commitments and native conformance before decompression.
+Actual crypto execution and OS process limits run only through the Linux full CI
+gate. Configuration/report tests establish no crypto execution or qualification.
+
 [Fake Engine RPC conformance](fake-engine.md) documents M0-PR15's synthetic identity, strict codec factory, bounded volatile state and race/timeout behavior. The full harness includes its executable loopback check; this is not evidence of encrypted inference or an enabled assurance profile.
 
 CI is configured on pull requests/main pushes with commit-pinned actions, `contents: read`, no persistent Git credentials and no production secrets. A hosted CI result is not claimed by configuration. Maintainers must enable required status checks (`verify`), review/branch rules and any desired repository security settings; no remote protections are changed here. Local hooks are not merge enforcement.

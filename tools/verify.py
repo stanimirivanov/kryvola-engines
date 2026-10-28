@@ -25,8 +25,10 @@ def main() -> None:
     run("ty", "check")
     run(sys.executable, "tools/architecture.py")
     run(sys.executable, "tools/dependency_policy.py")
+    run(sys.executable, "tools/feasibility.py", "tfhe-codec", "--check-only")
     if REPO in {"kryvola-fabric", "kryvola-engines"}:
         run("cargo", "fmt", "--all", "--check")
+        run("cargo", "fmt", "--manifest-path", "experiments/tfhe/Cargo.toml", "--all", "--check")
         run("cargo", "clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings")
     if args.level == "full":
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v")
@@ -38,6 +40,7 @@ def main() -> None:
             run("cmake", "-S", "cpp", "-B", "build/cpp", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug")
             run("cmake", "--build", "build/cpp")
             run("ctest", "--test-dir", "build/cpp", "--output-on-failure")
+            run(sys.executable, "tools/feasibility.py", "tfhe-codec")
         else:
             run("uv", "build", "--no-build-isolation", "--wheel")
 

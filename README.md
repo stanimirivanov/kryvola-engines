@@ -25,6 +25,13 @@ TFHE/SP1 are research-only candidates; distribution, commercial service, CUDA,
 guest toolchains and production compatibility remain unapproved. No heavy crypto
 dependency is installed or added to the workspace by this policy.
 
+M0-PR19 adds an isolated [TFHE codec experiment](docs/tfhe-codec.md). Check its
+configuration with `uv run --locked python tools/feasibility.py tfhe-codec --check-only`.
+The full Linux CI harness compiles and executes the real owner/evaluator round
+trip and native negative cases. This does not enable a production engine/profile.
+The full native gate now requires Linux x86_64; Windows supports the lightweight
+configuration, Python and formatting checks.
+
 ## Authoritative context
 
 - [Design v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-design-v2.md)

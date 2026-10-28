@@ -1,5 +1,22 @@
 # Foundation progress
 
+## M0-PR19 — bounded native codec experiment
+
+Issue #7 adds an isolated, locked TFHE 1.8.1 CPU research experiment with an
+explicit versioned parameter candidate, owner-only client keys, a separate
+evaluator, bounded safe native codecs and 16 required negatives. Trusted fixture
+commitments reject key-domain swaps; native conformance alone does not establish
+common key ownership. Memory reservation estimates are separate from hard Linux
+process limits. No production profile, owner binding or service is enabled.
+
+Local evidence covers lightweight policy/provenance, Python runner/report tests,
+formatting/types and locked Cargo metadata; all 14 Python tests passed.
+Heavy TFHE compilation and actual
+cryptographic execution are configured in the full CI harness; hosted success
+has not been observed or polled. Parameter/security approval, allocator fuzzing,
+benchmark/model qualification, compact proofs and distribution rights remain later
+gates. The dependency-policy snapshot is not promoted to a verified build matrix.
+
 ## M0-PR18 — dependency and toolchain candidates
 
 Issue #5 records checksum-verified metadata for released TFHE-rs 1.8.1 and SP1

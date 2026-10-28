@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "stage": "M0_RESEARCH_CANDIDATES",
+  "observed_on": "2026-10-28",
+  "toolchain": {
+    "rust": "1.98.1",
+    "python": "3.14.7",
+    "uv": "0.12.5"
+  },
+  "candidates": [
+    {
+      "name": "tfhe",
+      "version": "1.8.1",
+      "repository": "https://github.com/zama-ai/tfhe-rs",
+      "source_revision": "187fc0b95ab35352422deec6c027d0bd8743b6db",
+      "artifact": {
+        "url": "https://static.crates.io/crates/tfhe/tfhe-1.8.1.crate",
+        "sha256": "0d60dcde24115624e62a9a8dc627daa8d3dad40e8de69975957d12ee9ab70a2b",
+        "bytes": 2333440
+      },
+      "license": "BSD-3-Clause-Clear",
+      "evidence": {
+        "registry.json": {
+          "path": "config/dependency-evidence/tfhe/registry.json",
+          "sha256": "f71dd83d4918ca241871f92815871b5eff7dd086ba2ffc696718c6cff254412f",
+          "source": "https://crates.io/api/v1/crates/tfhe/1.8.1"
+        },
+        "Cargo.toml": {
+          "path": "config/dependency-evidence/tfhe/Cargo.toml",
+          "sha256": "60cc9058a39c1cf4326fe3424747363677b04177ccdb677f9f9a73f611b16738",
+          "source": "https://static.crates.io/crates/tfhe/tfhe-1.8.1.crate#Cargo.toml"
+        },
+        ".cargo_vcs_info.json": {
+          "path": "config/dependency-evidence/tfhe/.cargo_vcs_info.json",
+          "sha256": "7372dc08dc388027716c3b99ef8cf7e0f506142b9ffea082c3490568115ff156",
+          "source": "https://static.crates.io/crates/tfhe/tfhe-1.8.1.crate#.cargo_vcs_info.json"
+        },
+        "LICENSE": {
+          "path": "config/dependency-evidence/tfhe/LICENSE",
+          "sha256": "ca1883efce06b433378ad2b3b57bc9e580177b22d663829ba94aaaa3cbc37105",
+          "source": "https://raw.githubusercontent.com/zama-ai/tfhe-rs/187fc0b95ab35352422deec6c027d0bd8743b6db/LICENSE"
+        },
+        "notice.json": {
+          "path": "config/dependency-evidence/tfhe/notice.json",
+          "sha256": "c99e459a93dead0f6bcb44253a389487630f5592174aab751b5c5229e7a45ab5",
+          "source": "https://raw.githubusercontent.com/zama-ai/tfhe-rs/187fc0b95ab35352422deec6c027d0bd8743b6db/README.md"
+        }
+      },
+      "permissions": {
+        "local_research": "RESEARCH_ONLY",
+        "artifact_distribution": "DENY",
+        "commercial_service": "DENY"
+      },
+      "legal_review": "PENDING",
+      "features": [
+        "integer",
+        "software-prng"
+      ],
+      "default_features": false,
+      "compatibility": {
+        "target": "x86_64-unknown-linux-gnu",
+        "rustc": "1.98.1",
+        "status": "NOT_BUILT",
+        "native_compiler": "NOT_VERIFIED",
+        "cuda": "NOT_USED",
+        "python_wheel": "NOT_USED",
+        "guest_toolchain": "NOT_USED"
+      }
+    },
+    {
+      "name": "sp1-sdk",
+      "version": "6.9.0",
+      "repository": "https://github.com/succinctlabs/sp1",
+      "source_revision": "b8387fa61e1361d90ee7de49f551863418ca0f08",
+      "artifact": {
+        "url": "https://static.crates.io/crates/sp1-sdk/sp1-sdk-6.9.0.crate",
+        "sha256": "297c14b40e6a2c845c61e496f68f38dc04b6a249780cdac404656ff561516f2a",
+        "bytes": 214922
+      },
+      "license": "MIT OR Apache-2.0",
+      "evidence": {
+        "registry.json": {
+          "path": "config/dependency-evidence/sp1-sdk/registry.json",
+          "sha256": "2eb89fc1e931a70e1e7b3d7b9be21ba816211464a020bb59a9c13fd14c4182d0",
+          "source": "https://crates.io/api/v1/crates/sp1-sdk/6.9.0"
+        },
+        "Cargo.toml": {
+          "path": "config/dependency-evidence/sp1-sdk/Cargo.toml",
+          "sha256": "2d7cf0dbcb43065aba34017860d19482aa34692ee3ebf476cbb2a4e10112022e",
+          "source": "https://static.crates.io/crates/sp1-sdk/sp1-sdk-6.9.0.crate#Cargo.toml"
+        },
+        ".cargo_vcs_info.json": {
+          "path": "config/dependency-evidence/sp1-sdk/.cargo_vcs_info.json",
+          "sha256": "9e447ab98fec1591b0118c7425d8c217b01263d38884c096b96d7126b6a6300a",
+          "source": "https://static.crates.io/crates/sp1-sdk/sp1-sdk-6.9.0.crate#.cargo_vcs_info.json"
+        },
+        "LICENSE-MIT": {
+          "path": "config/dependency-evidence/sp1-sdk/LICENSE-MIT",
+          "sha256": "9ca8585e9ac717d6853902ae8c3588275407d1c56344b92ac1d133ffd9dfcbcc",
+          "source": "https://raw.githubusercontent.com/succinctlabs/sp1/b8387fa61e1361d90ee7de49f551863418ca0f08/LICENSE-MIT"
+        },
+        "LICENSE-APACHE": {
+          "path": "config/dependency-evidence/sp1-sdk/LICENSE-APACHE",
+          "sha256": "50e1c4e4124097b9afed83212b74e73248d74776c3a2b3a6ae9c320e7adb2062",
+          "source": "https://raw.githubusercontent.com/succinctlabs/sp1/b8387fa61e1361d90ee7de49f551863418ca0f08/LICENSE-APACHE"
+        },
+        "notice.json": {
+          "path": "config/dependency-evidence/sp1-sdk/notice.json",
+          "sha256": "a8cb3947a5348eb62a361fcbca676bc77d949b9b6b21b34b420643267564028f",
+          "source": "https://raw.githubusercontent.com/succinctlabs/sp1/b8387fa61e1361d90ee7de49f551863418ca0f08/README.md"
+        }
+      },
+      "permissions": {
+        "local_research": "RESEARCH_ONLY",
+        "artifact_distribution": "DENY",
+        "commercial_service": "DENY"
+      },
+      "legal_review": "PENDING",
+      "features": [],
+      "default_features": false,
+      "compatibility": {
+        "target": "x86_64-unknown-linux-gnu",
+        "rustc": "1.98.1",
+        "status": "NOT_BUILT",
+        "native_compiler": "NOT_VERIFIED",
+        "cuda": "NOT_USED",
+        "python_wheel": "NOT_USED",
+        "guest_toolchain": "NOT_PINNED"
+      }
+    }
+  ],
+  "optional": {
+    "risc-zero": {
+      "disposition": "DEFERRED",
+      "reason": "Alternative zkVM; no SDK/toolchain selected."
+    },
+    "openfhe": {
+      "disposition": "DEFERRED",
+      "reason": "CKKS/BFV extension; parameter/security/native packaging review pending."
+    },
+    "seal": {
+      "disposition": "DEFERRED",
+      "reason": "BFV/CKKS extension; no native dependency selected."
+    },
+    "tenseal": {
+      "disposition": "DEFERRED",
+      "reason": "Python wheel/ABI and transitive SEAL review pending; no CPython 3.14 wheel assumed."
+    },
+    "mp-spdz": {
+      "disposition": "DEFERRED",
+      "reason": "MPC protocol/license/network assumptions require separate review."
+    },
+    "syft": {
+      "disposition": "DEFERRED",
+      "reason": "SBOM tool selected and pinned by later image-publication work."
+    },
+    "cosign": {
+      "disposition": "DEFERRED",
+      "reason": "Platform owns its pinned verifier; engine publication/tool adoption remains later work."
+    },
+    "redpanda": {
+      "disposition": "DEFERRED",
+      "reason": "Platform-owned broker; BSL/RCL deployment/distribution scope requires review."
+    },
+    "seaweedfs": {
+      "disposition": "DEFERRED",
+      "reason": "Platform-owned conditional S3 fixture; no engine runtime dependency."
+    }
+  }
+}

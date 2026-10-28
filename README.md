@@ -19,6 +19,12 @@ No service credentials or local databases are required for this scope. `spec.loc
 
 M0-PR15 adds a [test-only fake EngineService](docs/fake-engine.md). Run `cargo run --locked -p kryvola-fake-engine -- conformance` for bounded loopback RPC conformance. This simulates metadata/status only; it provides no cryptographic capability or real output artifact. Heavy compilation/conformance checks run through the full CI harness.
 
+M0-PR18 records [dependency dispositions](docs/dependency-dispositions.md). Run
+`uv run --locked python tools/dependency_policy.py` for the offline candidate gate.
+TFHE/SP1 are research-only candidates; distribution, commercial service, CUDA,
+guest toolchains and production compatibility remain unapproved. No heavy crypto
+dependency is installed or added to the workspace by this policy.
+
 ## Authoritative context
 
 - [Design v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-design-v2.md)

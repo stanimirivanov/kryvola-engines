@@ -1,0 +1,7 @@
+{
+  "source": "https://raw.githubusercontent.com/zama-ai/tfhe-rs/187fc0b95ab35352422deec6c027d0bd8743b6db/README.md",
+  "document_sha256": "fe8069d53171b992b1683145fe623e492d33ebe891366b05297b7d78ed56c31c",
+  "observed_on": "2026-10-28",
+  "scope": "Source license/terms observation only; not counsel approval",
+  "summary": "Upstream describes commercial patent licensing separately from research use. Patent and distribution/service review remain unresolved."
+}

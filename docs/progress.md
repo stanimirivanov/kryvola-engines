@@ -1,5 +1,23 @@
 # Foundation progress
 
+## M0-PR18 — dependency and toolchain candidates
+
+Issue #5 records checksum-verified metadata for released TFHE-rs 1.8.1 and SP1
+SDK 6.9.0, source revisions, licences, primary notices and separate use-class
+dispositions. The offline policy gate checks evidence, pins, representative Cargo
+consumers and denied distribution/service classes. No heavy dependency is added.
+Both compiler/runtime rows remain unbuilt; CUDA, Python owner wheels and the SP1
+guest toolchain are unqualified. Optional libraries/tools/services remain deferred.
+Actual CPU/proof/build qualification and counsel/publication review remain later
+tasks; this metadata inspection does not satisfy those gates.
+
+Observed locally: all 12 Python tests, policy/contract provenance checks,
+Ruff formatting/lint, ty and Rust formatting passed. Native compilation,
+Clippy, RPC conformance and C++ tests remain on the existing full CI gate;
+hosted results have not been polled.
+
+## Initial scaffold
+
 Issue: #1. Scope: initial M0 repository scaffold, 25 October 2026.
 
 - Implemented: rust-native and c++ engine adapter foundations, versioned spec consumption, isolated architecture controls and diagnostics.

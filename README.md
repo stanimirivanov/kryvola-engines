@@ -32,6 +32,12 @@ trip and native negative cases. This does not enable a production engine/profile
 The full native gate now requires Linux x86_64; Windows supports the lightweight
 configuration, Python and formatting checks.
 
+M0-PR20 adds the [frozen circuit feasibility gate](docs/tfhe-eval.md):
+`uv run --locked python tools/feasibility.py tfhe-eval --check-only` checks the
+immutable ML snapshot offline. Full Linux CI evaluates all 100 frozen cases with
+separate owner/evaluator processes and retains numeric stage/RSS observations.
+PBS/GPU measurements remain explicitly unavailable; no profile is enabled.
+
 ## Authoritative context
 
 - [Design v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-design-v2.md)

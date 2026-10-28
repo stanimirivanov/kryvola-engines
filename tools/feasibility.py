@@ -1,6 +1,7 @@
 """Run isolated, research-only native feasibility checks; heavy execution belongs on CI."""
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -12,6 +13,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+if __package__:
+    from . import tfhe_results
+else:
+    import tfhe_results
+
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "experiments/tfhe/Cargo.toml"
 TARGET = "x86_64-unknown-linux-gnu"
@@ -19,7 +25,7 @@ KEY_MAX = 64 << 20
 CT_MAX = 1 << 20
 
 
-def configuration() -> None:
+def configuration(experiment: str = "tfhe-codec") -> None:
     result = subprocess.run(
         [
             sys.executable,
@@ -41,6 +47,8 @@ def configuration() -> None:
         raise ValueError("EXPERIMENT_MUST_BE_ISOLATED")
     if not MANIFEST.with_name("Cargo.lock").is_file():
         raise ValueError("EXPERIMENT_LOCK_REQUIRED")
+    if experiment == "tfhe-eval":
+        tfhe_results.fixture()
 
 
 def report(raw: bytes) -> dict[str, Any]:
@@ -105,7 +113,7 @@ def _stop_group(child: subprocess.Popen[bytes]) -> None:
     child.wait()
 
 
-def execute() -> dict[str, Any]:
+def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise ValueError("NATIVE_EXPERIMENT_REQUIRES_LINUX_X86_64")
     if "CARGO_TARGET_DIR" in os.environ:
@@ -141,7 +149,7 @@ def execute() -> dict[str, Any]:
         root = Path(directory)
         with (root / "report.json").open("wb") as output:
             child = subprocess.Popen(
-                [str(binary), "owner", directory],
+                [str(binary), "frozen-owner" if experiment == "tfhe-eval" else "owner", directory],
                 cwd=root,
                 env={"PATH": os.defpath, "HOME": directory, "RAYON_NUM_THREADS": "2"},
                 stdin=subprocess.DEVNULL,
@@ -156,20 +164,65 @@ def execute() -> dict[str, Any]:
             finally:
                 _stop_group(child)
         with (root / "report.json").open("rb") as stream:
-            return report(stream.read(8193))
+            if experiment == "tfhe-codec":
+                return report(stream.read(8193))
+            with binary.open("rb") as executable:
+                binary_sha256 = hashlib.file_digest(executable, "sha256").hexdigest()
+            rejection = subprocess.Popen(
+                [str(binary), "frozen-evaluator", directory, "0" * 64, "0" * 64, "0" * 64],
+                cwd=root,
+                env={"RAYON_NUM_THREADS": "2"},
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                preexec_fn=_limits,
+                start_new_session=True,
+            )
+            try:
+                if rejection.wait(timeout=10) != 27:
+                    raise ValueError("WORKLOAD_BINDING_REJECTION_FAILED")
+            finally:
+                _stop_group(rejection)
+            return {
+                "experiment": "tfhe-eval",
+                "native": tfhe_results.report(stream.read(65_537)),
+                "fixture_source": tfhe_results.SOURCE,
+                "fixture_manifest_sha256": tfhe_results.MANIFEST_SHA256,
+                "host": platform.platform(),
+                "rust_toolchain": channel,
+                "tfhe_version": "1.8.1",
+                "native_binary_sha256": binary_sha256,
+                "workload_binding_rejection_verified": True,
+                "rayon_threads": 2,
+                "cache_state": "FRESH_PROCESS_SINGLE_EXPANSION_REUSED_FOR_100_CASES",
+                "address_space_limit_per_process_bytes": 4 << 30,
+                "reservation_is_estimate": True,
+                "pbs": {
+                    "count": None,
+                    "elapsed_ns": None,
+                    "estimate": None,
+                    "reason": "PBS_STATS_FEATURE_DISABLED",
+                },
+                "gpu": tfhe_results.gpu_probe(),
+                "production_qualified": False,
+            }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("experiment", choices=["tfhe-codec"])
+    parser.add_argument("experiment", choices=["tfhe-codec", "tfhe-eval"])
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()
     try:
-        configuration()
+        configuration(args.experiment)
         value = (
-            {"experiment": "tfhe-codec", "status": "configuration_only", "native_executed": False}
+            {
+                "experiment": args.experiment,
+                "status": "configuration_only",
+                "native_executed": False,
+            }
             if args.check_only
-            else execute()
+            else execute(args.experiment)
         )
         print(json.dumps(value, sort_keys=True))
         return 0

@@ -43,6 +43,8 @@ macro_rules! encode {
     }};
 }
 
+mod frozen;
+
 fn need(condition: bool, code: i32) -> Result<()> {
     if condition { Ok(()) } else { Err(code) }
 }
@@ -82,7 +84,13 @@ fn decode_ct(bytes: &[u8]) -> Result<FheUint8> {
     Ok(value)
 }
 
-fn evaluator(root: &Path, context: blake3::Hash, approved_input: blake3::Hash) -> Result<()> {
+fn read_input(
+    root: &Path,
+    context: blake3::Hash,
+    approved_input: blake3::Hash,
+    expected_count: u32,
+    ct_max: u64,
+) -> Result<(CompressedServerKey, Vec<u8>)> {
     let mut input = File::open(root.join("input.bin")).map_err(|_| FRAMING)?;
     need(&take::<8>(&mut input)? == MAGIC, FRAMING)?;
     need(&take::<8>(&mut input)? == VERSION, VERSION_ERROR)?;
@@ -92,9 +100,9 @@ fn evaluator(root: &Path, context: blake3::Hash, approved_input: blake3::Hash) -
     let key_len = u64::from_le_bytes(take(&mut input)?);
     let ct_len = u64::from_le_bytes(take(&mut input)?);
     let budget = u64::from_le_bytes(take(&mut input)?);
-    need(count == 1, COUNT)?;
+    need(count == expected_count, COUNT)?;
     need(
-        key_len > 0 && key_len <= KEY_MAX && ct_len > 0 && ct_len <= CT_MAX,
+        key_len > 0 && key_len <= KEY_MAX && ct_len > 0 && ct_len <= ct_max,
         SIZE,
     )?;
     need(budget >= reservation() && budget <= EXPANSION_MAX, BUDGET)?;
@@ -115,6 +123,11 @@ fn evaluator(root: &Path, context: blake3::Hash, approved_input: blake3::Hash) -
     let compressed: CompressedServerKey =
         safe_deserialize_conformant(&mut cursor, KEY_MAX, &config.into()).map_err(|_| NATIVE)?;
     need(cursor.position() == key_len, NATIVE)?;
+    Ok((compressed, ct))
+}
+
+fn evaluator(root: &Path, context: blake3::Hash, approved_input: blake3::Hash) -> Result<()> {
+    let (compressed, ct) = read_input(root, context, approved_input, 1, CT_MAX)?;
     let value = decode_ct(&ct)?;
     // No decompression or evaluation until all shape/binding/budget checks pass.
     tfhe::set_server_key(compressed.decompress());
@@ -146,9 +159,21 @@ fn dispatch(
     approved: blake3::Hash,
     expected: i32,
 ) -> Result<()> {
+    dispatch_mode(root, bytes, context, approved, expected, "evaluator")
+}
+
+fn dispatch_mode(
+    root: &Path,
+    bytes: &[u8],
+    context: blake3::Hash,
+    approved: blake3::Hash,
+    expected: i32,
+    mode: &str,
+) -> Result<()> {
     fs::write(root.join("input.bin"), bytes).map_err(|_| FRAMING)?;
-    let mut child = Command::new(std::env::current_exe().map_err(|_| TEST)?)
-        .arg("evaluator")
+    let mut command = Command::new(std::env::current_exe().map_err(|_| TEST)?);
+    command
+        .arg(mode)
         .arg(root)
         .arg(context.to_hex().as_str())
         .arg(approved.to_hex().as_str())
@@ -156,16 +181,19 @@ fn dispatch(
         .env("RAYON_NUM_THREADS", "2")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| TEST)?;
+        .stderr(Stdio::null());
+    if mode == "frozen-evaluator" {
+        command.arg(frozen::workload().to_hex().as_str());
+    }
+    let mut child = command.spawn().map_err(|_| TEST)?;
     need(child.id() != std::process::id(), TEST)?;
     let start = Instant::now();
     loop {
         if let Some(status) = child.try_wait().map_err(|_| TEST)? {
             return need(status.code() == Some(expected), TEST);
         }
-        if start.elapsed() > Duration::from_secs(90) {
+        if start.elapsed() > Duration::from_secs(if mode == "frozen-evaluator" { 480 } else { 90 })
+        {
             let _ = child.kill();
             let _ = child.wait();
             return Err(TEST);
@@ -280,6 +308,18 @@ fn run() -> Result<()> {
     let root = args.get(2).ok_or(TEST).map(Path::new)?;
     match args.get(1).and_then(|v| v.to_str()) {
         Some("owner") if args.len() == 3 => owner(root),
+        Some("frozen-owner") if args.len() == 3 => frozen::owner(root),
+        Some("frozen-evaluator") if args.len() == 6 => {
+            need(
+                args[5].to_str() == Some(frozen::workload().to_hex().as_str()),
+                BINDING,
+            )?;
+            let context =
+                blake3::Hash::from_hex(args[3].to_str().ok_or(TEST)?).map_err(|_| TEST)?;
+            let approved =
+                blake3::Hash::from_hex(args[4].to_str().ok_or(TEST)?).map_err(|_| TEST)?;
+            frozen::evaluator(root, context, approved)
+        }
         Some("evaluator") if args.len() == 5 => {
             let context =
                 blake3::Hash::from_hex(args[3].to_str().ok_or(TEST)?).map_err(|_| TEST)?;

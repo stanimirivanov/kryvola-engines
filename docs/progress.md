@@ -1,5 +1,19 @@
 # Foundation progress
 
+## M0-PR20 — frozen quantized circuit feasibility
+
+Issue #9 pins ML's public fixture at `dcba320678eb454047e29c8a42417ffe8d94a323`.
+The isolated TFHE experiment now has a fixed uint8 circuit mode, separate
+owner/evaluator processes, exact 100-case/200-value comparisons, bound native
+batches and raw per-case/stage/resource observations. Workload/count negatives
+are required alongside the unchanged codec negatives. GPU prerequisites are
+probed; unapproved GPU and uninstrumented PBS measurements remain unavailable.
+Local evidence covers formatting, Python lint/types, policy/provenance and focused
+fixture/report controls. Heavy compilation, real encrypted correctness, observed
+RSS and full native checks are delegated to CI; no hosted pass is claimed.
+No production profile, security/parameter/legal qualification or measured service
+latency envelope is established by this research gate.
+
 ## M0-PR19 — bounded native codec experiment
 
 Issue #7 adds an isolated, locked TFHE 1.8.1 CPU research experiment with an

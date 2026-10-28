@@ -5,6 +5,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -132,6 +133,9 @@ def _limits():
 def execute() -> dict:
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise ValueError("SP1_REQUIRES_LINUX_X86_64_DOCKER")
+    protoc = shutil.which(os.environ.get("PROTOC", "protoc"))
+    if protoc is None:
+        raise ValueError("SP1_PROTOC_REQUIRED")
     output = ROOT / "build/sp1"
     output.mkdir(parents=True, exist_ok=True)
     host_target = output / "host-target"
@@ -158,7 +162,7 @@ def execute() -> dict:
         cli = output / "cargo-prove"
         cli.write_bytes(stream.read(128 << 20))
         cli.chmod(0o755)
-    build_env = {**os.environ, "SP1_DOCKER_IMAGE": IMAGE, "CARGO_BUILD_JOBS": "1"}
+    build_env = {**os.environ, "SP1_DOCKER_IMAGE": IMAGE, "CARGO_BUILD_JOBS": "1", "PROTOC": protoc}
     elf_dir = output / "elf"
     elf_dir.mkdir(exist_ok=True)
     for name in ("metadata", "alternate"):

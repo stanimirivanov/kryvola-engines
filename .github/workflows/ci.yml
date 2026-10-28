@@ -35,6 +35,11 @@ jobs:
         with:
           version: "0.12.5"
       - run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+      - name: Install SP1 host protobuf prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends protobuf-compiler libprotobuf-dev
+          protoc --version
       - run: uv sync --locked
       - run: uv run --locked python tools/feasibility.py sp1-relation
   verify:

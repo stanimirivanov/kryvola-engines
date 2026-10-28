@@ -56,6 +56,7 @@ class Sp1RelationTests(unittest.TestCase):
                     destination = Path(command[command.index("--output-directory") + 1])
                     (destination / command[command.index("--elf-name") + 1]).write_bytes(b"elf")
                 elif command[0] == "cargo":
+                    self.assertEqual(env["PROTOC"], "/usr/bin/protoc")
                     destination = Path(command[command.index("--target-dir") + 1])
                     self.assertFalse(destination.is_relative_to(work / "target"))
                     (destination / "release").mkdir()
@@ -70,12 +71,26 @@ class Sp1RelationTests(unittest.TestCase):
                 patch.object(sp1_relation, "CLI_SHA256", hashlib.sha256(raw).hexdigest()),
                 patch.object(sp1_relation.platform, "system", return_value="Linux"),
                 patch.object(sp1_relation.platform, "machine", return_value="x86_64"),
+                patch.object(sp1_relation.shutil, "which", return_value="/usr/bin/protoc"),
                 patch.object(sp1_relation.urllib.request, "urlopen", return_value=io.BytesIO(raw)),
                 patch.object(sp1_relation, "_run", side_effect=simulate),
             ):
                 self.assertEqual(sp1_relation.execute(), fixture())
             self.assertEqual(len(calls), 4)
             self.assertEqual((work / "target").read_text(), "Docker-owned target")
+
+    def test_missing_protoc_fails_before_download_or_build(self):
+        with (
+            patch.object(sp1_relation.platform, "system", return_value="Linux"),
+            patch.object(sp1_relation.platform, "machine", return_value="x86_64"),
+            patch.object(sp1_relation.shutil, "which", return_value=None),
+            patch.object(sp1_relation.urllib.request, "urlopen") as download,
+            patch.object(sp1_relation, "_run") as build,
+        ):
+            with self.assertRaisesRegex(ValueError, "SP1_PROTOC_REQUIRED"):
+                sp1_relation.execute()
+            download.assert_not_called()
+            build.assert_not_called()
 
     def test_closed_report_rejects_wrong_modes_bindings_limits_and_outcomes(self):
         self.assertEqual(report(json.dumps(fixture()).encode()), fixture())

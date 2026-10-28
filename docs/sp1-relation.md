@@ -2,7 +2,12 @@
 
 `uv run --locked python tools/feasibility.py sp1-relation --check-only` checks the
 isolated locked SDK and research/mode policy without downloading or executing
-anything. Without `--check-only`, Linux x86_64 and Docker are required. Heavy
+anything. Without `--check-only`, Linux x86_64, Docker and host `protoc` are required.
+On Debian/Ubuntu install `protobuf-compiler libprotobuf-dev`; SP1's host build
+imports the standard `google/protobuf/empty.proto` schema. CI installs these
+prerequisites explicitly and records `protoc --version`. The runner resolves
+`PROTOC` (or `protoc` on PATH) before downloads/builds and passes that executable
+to host Cargo. Offline configuration checks do not require the compiler. Heavy
 guest compilation, SDK build and proving run on CI; configuration success is not
 proof verification. `tools/verify.py full` includes every gate. CI runs its native
 portion with `tools/verify.py native` and a separate `sp1` job; the existing

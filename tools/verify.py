@@ -24,6 +24,7 @@ def main() -> None:
     run("ruff", "check", ".")
     run("ty", "check")
     run(sys.executable, "tools/architecture.py")
+    run(sys.executable, "tools/dependency_policy.py")
     if REPO in {"kryvola-fabric", "kryvola-engines"}:
         run("cargo", "fmt", "--all", "--check")
         run("cargo", "clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings")

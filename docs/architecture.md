@@ -16,6 +16,13 @@ All future engines, TFHE-rs and zkVM guests/provers live here. Compute accepts p
 
 The custom architecture tool examines declared dependencies and static Python imports, not arbitrary program behavior. Its isolated fixtures demonstrate both valid acceptance and representative failure, including nonzero CLI exit. Required inputs are never optional and failures propagate through the canonical task runner.
 
+The [dependency candidate gate](dependency-dispositions.md) checks internal build
+policy and immutable evidence before native checks. It uses standard Cargo/registry
+metadata rather than authoring another wire contract. Local research, artifact
+distribution and commercial service are distinct classes; only research candidates
+are admitted. Recorded compiler minimums and unbuilt matrix rows establish no
+runtime compatibility, patent rights or production qualification.
+
 [Fake Engine RPC conformance](fake-engine.md) documents M0-PR15's synthetic identity, strict codec factory, bounded volatile state and race/timeout behavior. The full harness includes its executable loopback check; this is not evidence of encrypted inference or an enabled assurance profile.
 
 CI is configured on pull requests/main pushes with commit-pinned actions, `contents: read`, no persistent Git credentials and no production secrets. A hosted CI result is not claimed by configuration. Maintainers must enable required status checks (`verify`), review/branch rules and any desired repository security settings; no remote protections are changed here. Local hooks are not merge enforcement.

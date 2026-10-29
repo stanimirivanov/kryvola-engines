@@ -227,10 +227,10 @@ def validate(root: Path = ROOT) -> dict[str, Any]:
             "UNQUALIFIED_COMBINATION",
         )
     fields(policy["optional"], OPTIONAL)
-    for item in policy["optional"].values():
+    for name, item in policy["optional"].items():
         fields(item, {"disposition", "reason"})
         require(
-            item["disposition"] == "DEFERRED"
+            item["disposition"] == ("BUILD_TOOL_ONLY" if name in {"syft", "cosign"} else "DEFERRED")
             and isinstance(item["reason"], str)
             and bool(item["reason"]),
             "UNKNOWN_DISPOSITION",

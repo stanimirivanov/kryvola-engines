@@ -52,6 +52,10 @@ guests and requires real local CPU proof verification and negative controls.
 
 ## Authoritative context
 
+M0-PR24 adds [role-separated package qualification](docs/engine-packaging.md),
+two-build comparisons, pinned SBOM/signature tools and a fake-only manual release
+workflow. TFHE/SP1 packages remain local to CI; distribution is still denied.
+
 M0-PR23 adds [proof-mode measurements](docs/proof-feasibility.md).
 `uv run --locked python tools/feasibility.py proof-modes --check-only` validates
 the research matrix offline. Full execution measures two real Core CPU requests

@@ -1,5 +1,11 @@
 # M0 dependency and toolchain candidates
 
+M0-PR24 supersedes the original Syft/Cosign deferral below for **build tools only**:
+their archive/executable pins and actual qualification commands are documented in
+[engine packaging](engine-packaging.md). They remain forbidden as application
+dependencies. TFHE/SP1 distribution/service denials and pending legal review are
+unchanged; build-tool adoption grants no crypto publication permission.
+
 M0-PR18 records research candidates, not a qualified engine release. No TFHE/SP1
 dependency, guest compiler, CUDA toolchain or service client is installed or added
 to the workspace by this change. Distribution and commercial service are denied.

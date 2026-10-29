@@ -122,6 +122,10 @@ async fn experiment() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::main(worker_threads = 2)]
 async fn main() {
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["--artifact-role"] {
+        println!("local-prover");
+        return;
+    }
     std::panic::set_hook(Box::new(|_| {
         eprintln!("KRY_SP1_PANIC={}", STAGE.load(Ordering::Relaxed))
     }));

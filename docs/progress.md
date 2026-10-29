@@ -1,5 +1,15 @@
 # Foundation progress
 
+## M0-PR24 — experimental package qualification
+
+Issue #17 adds separate fake/compute/owner/prover packages with binary role checks,
+clean target-directory comparisons, SBOM/provenance subject binding and Cosign
+verification. Compute-only builds reject owner routes. CI must qualify all four
+locally before PR creation; only the fake artifact has a main-only manual public
+release path. TFHE/SP1 distribution/service permissions remain denied. No public
+release, SLSA assurance level, complete license inventory or production image is
+claimed by this change. Evidence is recorded in the PR after actual CI execution.
+
 ## M0-PR23 — proof mode measurements
 
 Issue #15 adds a pinned candidate-mode matrix, two fresh-process real Core CPU

@@ -9,6 +9,9 @@ publish = false
 # Keep heavy crypto resolution/builds outside the ordinary engine workspace.
 [workspace]
 
+[features]
+compute-only = []
+
 [dependencies]
 tfhe = { version = "=1.8.1", default-features = false, features = ["integer", "software-prng", "zk-pok"] }
 blake3 = "=1.8.7"

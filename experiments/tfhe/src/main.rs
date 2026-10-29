@@ -306,16 +306,31 @@ fn owner(root: &Path) -> Result<()> {
 
 fn run() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
+    if args.len() == 2 && args[1] == "--artifact-role" {
+        println!(
+            "{}",
+            if cfg!(feature = "compute-only") {
+                "cpu-evaluator"
+            } else {
+                "owner-fixture"
+            }
+        );
+        return Ok(());
+    }
     let root = args.get(2).ok_or(TEST).map(Path::new)?;
     match args.get(1).and_then(|v| v.to_str()) {
-        Some("owner") if args.len() == 3 => owner(root),
-        Some("compact-owner") if args.len() == 3 => compact::owner(root),
+        Some("owner") if !cfg!(feature = "compute-only") && args.len() == 3 => owner(root),
+        Some("compact-owner") if !cfg!(feature = "compute-only") && args.len() == 3 => {
+            compact::owner(root)
+        }
         Some("compact-verifier") if args.len() == 4 => {
             let context =
                 blake3::Hash::from_hex(args[3].to_str().ok_or(TEST)?).map_err(|_| TEST)?;
             compact::verifier(root, context)
         }
-        Some("frozen-owner") if args.len() == 3 => frozen::owner(root),
+        Some("frozen-owner") if !cfg!(feature = "compute-only") && args.len() == 3 => {
+            frozen::owner(root)
+        }
         Some("frozen-evaluator") if args.len() == 6 => {
             need(
                 args[5].to_str() == Some(frozen::workload().to_hex().as_str()),

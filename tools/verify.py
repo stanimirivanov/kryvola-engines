@@ -18,7 +18,7 @@ def run(*command: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("level", choices=["fast", "full"], default="full", nargs="?")
+    parser.add_argument("level", choices=["fast", "native", "full"], default="full", nargs="?")
     args = parser.parse_args()
     run("ruff", "format", "--check", ".")
     run("ruff", "check", ".")
@@ -28,11 +28,13 @@ def main() -> None:
     run(sys.executable, "tools/feasibility.py", "tfhe-codec", "--check-only")
     run(sys.executable, "tools/feasibility.py", "tfhe-eval", "--check-only")
     run(sys.executable, "tools/feasibility.py", "tfhe-compact", "--check-only")
+    run(sys.executable, "tools/feasibility.py", "sp1-relation", "--check-only")
     if REPO in {"kryvola-fabric", "kryvola-engines"}:
         run("cargo", "fmt", "--all", "--check")
         run("cargo", "fmt", "--manifest-path", "experiments/tfhe/Cargo.toml", "--all", "--check")
+        run("cargo", "fmt", "--manifest-path", "experiments/sp1/Cargo.toml", "--all", "--check")
         run("cargo", "clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings")
-    if args.level == "full":
+    if args.level in {"native", "full"}:
         run(sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v")
         if REPO in {"kryvola-fabric", "kryvola-engines"}:
             run("cargo", "test", "--locked", "--workspace")
@@ -47,6 +49,8 @@ def main() -> None:
             run(sys.executable, "tools/feasibility.py", "tfhe-compact")
         else:
             run("uv", "build", "--no-build-isolation", "--wheel")
+    if args.level == "full":
+        run(sys.executable, "tools/feasibility.py", "sp1-relation")
 
 
 if __name__ == "__main__":

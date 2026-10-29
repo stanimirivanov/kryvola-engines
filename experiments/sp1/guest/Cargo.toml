@@ -1,0 +1,17 @@
+[package]
+name = "kryvola-sp1-guest"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+sp1-zkvm = { version = "=6.9.0", default-features = false, features = ["lib", "libm"] }
+kryvola-sp1-statement = { path = "../statement" }
+
+[[bin]]
+name = "metadata"
+path = "src/main.rs"
+
+[[bin]]
+name = "alternate"
+path = "src/alternate.rs"

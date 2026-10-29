@@ -14,9 +14,10 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 if __package__:
-    from . import compact_results, tfhe_results
+    from . import compact_results, sp1_relation, tfhe_results
 else:
     import compact_results
+    import sp1_relation
     import tfhe_results
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +28,9 @@ CT_MAX = 1 << 20
 
 
 def configuration(experiment: str = "tfhe-codec") -> None:
+    if experiment == "sp1-relation":
+        sp1_relation.configuration()
+        return
     result = subprocess.run(
         [
             sys.executable,
@@ -127,6 +131,8 @@ def _stop_group(child: subprocess.Popen[bytes]) -> None:
 
 
 def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
+    if experiment == "sp1-relation":
+        return sp1_relation.execute()
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise ValueError("NATIVE_EXPERIMENT_REQUIRES_LINUX_X86_64")
     if "CARGO_TARGET_DIR" in os.environ:
@@ -250,7 +256,9 @@ def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("experiment", choices=["tfhe-codec", "tfhe-eval", "tfhe-compact"])
+    parser.add_argument(
+        "experiment", choices=["tfhe-codec", "tfhe-eval", "tfhe-compact", "sp1-relation"]
+    )
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()
     try:

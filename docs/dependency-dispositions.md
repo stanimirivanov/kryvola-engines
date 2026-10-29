@@ -1,5 +1,12 @@
 # M0 dependency and toolchain candidates
 
+M0-PR35 records the current [measured research decisions](m0-feasibility.md).
+Two complete fixed-source Linux CPU campaigns now provide experimental build and
+runtime evidence. The M0-PR18 `NOT_BUILT` matrix below remains the historical
+candidate snapshot, not a current build verdict; its immutable metadata bytes and
+policy permissions are preserved. Research evidence does not qualify production
+parameters or grant legal/distribution/service approval.
+
 M0-PR24 supersedes the original Syft/Cosign deferral below for **build tools only**:
 their archive/executable pins and actual qualification commands are documented in
 [engine packaging](engine-packaging.md). They remain forbidden as application
@@ -46,12 +53,14 @@ transitives, patents, intended use and service terms, plus build provenance and
 artifact qualification. No policy field can claim those approvals in this stage.
 
 The candidate matrix is Linux `x86_64-unknown-linux-gnu`, host Rust 1.98.1, with
-default features disabled. TFHE selects `integer` and `software-prng`; SP1 selects
+default features disabled. TFHE selects `integer`, `software-prng` and (since
+M0-PR21) `zk-pok`; SP1 selects
 no optional features. Remote proving, GPU, experimental and internal key-cache
 features are not admitted. The Rust minimum comparison is a necessary metadata
 check, **not** evidence of compiler/ABI compatibility. Both rows remain `NOT_BUILT`;
 native compilers are `NOT_VERIFIED`. CPU build/runtime qualification belongs to
-PR19 and the subsequent proof experiment. No supported production combination is
+PR19 and the subsequent proof experiment, now observed within the cited PR35
+research envelope. No supported production combination is
 asserted. Host Python 3.14.7/uv 0.12.5 pins govern our harness only; selected
 artifacts are Rust crates, not Python wheels. No CPython 3.14 owner wheel is selected.
 
@@ -61,9 +70,10 @@ Actual release observations also show TFHE CUDA backend 0.16.0 at source
 It is not admitted. Neither CUDA compiler/driver compatibility nor GPU execution
 was verified. SP1 6.9.0 publishes a Linux amd64 cargo-prove archive with SHA-256
 `0eb8a2b3eef9b498443a338a545422a7acd37ee08d17d784a9c16f4c0bfb975b`;
-it is not installed or admitted, and no guest compiler bytes are pinned here.
-Do not substitute a mutable upstream toolchain installer. Actual guest/compiler,
-CUDA/hardware and binary/wheel evidence are explicit later qualification gaps.
+the original snapshot did not admit it. M0-PR22 subsequently pinned that CLI and a
+guest compiler image digest in `tools/sp1_relation.py`; the public Core experiment
+has now run successfully. Do not substitute a mutable upstream toolchain installer.
+Production guest/compiler, CUDA/hardware and binary/wheel qualification remain gaps.
 
 Optional RISC Zero, OpenFHE, SEAL, TenSEAL and MP-SPDZ remain deferred. Syft and
 engine-publication Cosign adoption require separately pinned build tools; the

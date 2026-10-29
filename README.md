@@ -52,6 +52,10 @@ guests and requires real local CPU proof verification and negative controls.
 
 ## Authoritative context
 
+M0-PR35 publishes [measured crypto decisions](docs/m0-feasibility.md).
+`uv run --locked python tools/qualification.py` checks the pinned numeric evidence
+offline: bounded research may continue; production private inference remains NO-GO.
+
 M0-PR24 adds [role-separated package qualification](docs/engine-packaging.md),
 two-build comparisons, pinned SBOM/signature tools and a fake-only manual release
 workflow. TFHE/SP1 packages remain local to CI; distribution is still denied.

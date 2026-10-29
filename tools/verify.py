@@ -29,6 +29,7 @@ def main() -> None:
     run(sys.executable, "tools/feasibility.py", "tfhe-eval", "--check-only")
     run(sys.executable, "tools/feasibility.py", "tfhe-compact", "--check-only")
     run(sys.executable, "tools/feasibility.py", "sp1-relation", "--check-only")
+    run(sys.executable, "tools/feasibility.py", "proof-modes", "--check-only")
     if REPO in {"kryvola-fabric", "kryvola-engines"}:
         run("cargo", "fmt", "--all", "--check")
         run("cargo", "fmt", "--manifest-path", "experiments/tfhe/Cargo.toml", "--all", "--check")
@@ -50,7 +51,7 @@ def main() -> None:
         else:
             run("uv", "build", "--no-build-isolation", "--wheel")
     if args.level == "full":
-        run(sys.executable, "tools/feasibility.py", "sp1-relation")
+        run(sys.executable, "tools/feasibility.py", "proof-modes")
 
 
 if __name__ == "__main__":

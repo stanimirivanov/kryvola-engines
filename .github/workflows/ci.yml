@@ -2,7 +2,7 @@ name: foundation
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'feature/issue-*', 'fix/issue-*']
 permissions:
   contents: read
 concurrency:
@@ -41,7 +41,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends protobuf-compiler libprotobuf-dev
           protoc --version
       - run: uv sync --locked
-      - run: uv run --locked python tools/feasibility.py sp1-relation
+      - run: uv run --locked python tools/feasibility.py proof-modes
   verify:
     if: ${{ always() }}
     needs: [native, sp1]

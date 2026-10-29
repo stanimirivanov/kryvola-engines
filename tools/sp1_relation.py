@@ -160,7 +160,7 @@ def _limits():
             resource.setrlimit(kind, (maximum, maximum))
 
 
-def execute() -> dict:
+def prepare() -> Path:
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise ValueError("SP1_REQUIRES_LINUX_X86_64_DOCKER")
     protoc = shutil.which(os.environ.get("PROTOC", "protoc"))
@@ -238,13 +238,19 @@ def execute() -> dict:
         build_env,
         2400,
     )
+    return host_target / "release/kryvola-sp1-host"
+
+
+def execute(binary: Path | None = None) -> dict:
+    if binary is None:
+        binary = prepare()
     with TemporaryDirectory(prefix="kryvola-sp1-") as directory:
         temporary = Path(directory)
         diagnostic = temporary / "stderr.log"
         with (temporary / "report.json").open("wb") as stream, diagnostic.open("wb") as errors:
             try:
                 _run(
-                    [str(host_target / "release/kryvola-sp1-host"), str(temporary / "proof.bin")],
+                    [str(binary), str(temporary / "proof.bin")],
                     temporary,
                     {
                         "PATH": os.defpath,

@@ -1,0 +1,34 @@
+{
+  "CORE_CPU": {
+    "status": "RESEARCH_ONLY",
+    "witness_access": "LOCAL_PROVER_SEES_ALL_INPUTS",
+    "input_domain": "PUBLIC_METADATA_ONLY",
+    "verifier_privacy": "NOT_ZERO_KNOWLEDGE",
+    "setup": "NO_SNARK_CEREMONY",
+    "reason": "PINNED_RELATION_AND_REAL_CORE_VERIFIER"
+  },
+  "COMPRESSED": {
+    "status": "DISABLED",
+    "witness_access": "LOCAL_PROVER_SEES_ALL_INPUTS",
+    "input_domain": "NOT_ADMITTED",
+    "verifier_privacy": "NO_ZK_EXPORT_APPROVAL",
+    "setup": "RECURSION_ARTIFACTS_NOT_QUALIFIED",
+    "reason": "RECURSION_OUTSIDE_THIS_EXPERIMENT"
+  },
+  "GROTH16": {
+    "status": "DISABLED",
+    "witness_access": "LOCAL_PROVER_SEES_ALL_INPUTS",
+    "input_domain": "NOT_ADMITTED",
+    "verifier_privacy": "UPSTREAM_ZK_CLAIM_NOT_QUALIFIED",
+    "setup": "CIRCUIT_SPECIFIC_CEREMONY_UNPINNED",
+    "reason": "SETUP_CIRCUIT_VERIFIER_REVIEW_PENDING"
+  },
+  "PLONK": {
+    "status": "DISABLED",
+    "witness_access": "LOCAL_PROVER_SEES_ALL_INPUTS",
+    "input_domain": "NOT_ADMITTED",
+    "verifier_privacy": "UPSTREAM_ZK_CLAIM_NOT_QUALIFIED",
+    "setup": "UNIVERSAL_CEREMONY_UNPINNED",
+    "reason": "SETUP_CIRCUIT_VERIFIER_REVIEW_PENDING"
+  }
+}

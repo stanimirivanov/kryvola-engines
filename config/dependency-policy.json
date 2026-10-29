@@ -152,12 +152,12 @@
       "reason": "MPC protocol/license/network assumptions require separate review."
     },
     "syft": {
-      "disposition": "DEFERRED",
-      "reason": "SBOM tool selected and pinned by later image-publication work."
+      "disposition": "BUILD_TOOL_ONLY",
+      "reason": "M0-PR24 pins Syft 1.55.0 archive/executable in tools/release.py for local SPDX inventory; no runtime dependency or legal approval."
     },
     "cosign": {
-      "disposition": "DEFERRED",
-      "reason": "Platform owns its pinned verifier; engine publication/tool adoption remains later work."
+      "disposition": "BUILD_TOOL_ONLY",
+      "reason": "M0-PR24 pins Cosign 3.1.3 in tools/release.py; crypto distribution/service denials remain unchanged."
     },
     "redpanda": {
       "disposition": "DEFERRED",

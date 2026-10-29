@@ -25,6 +25,7 @@ def main() -> None:
     run("ty", "check")
     run(sys.executable, "tools/architecture.py")
     run(sys.executable, "tools/dependency_policy.py")
+    run(sys.executable, "tools/release.py", "verify")
     run(sys.executable, "tools/feasibility.py", "tfhe-codec", "--check-only")
     run(sys.executable, "tools/feasibility.py", "tfhe-eval", "--check-only")
     run(sys.executable, "tools/feasibility.py", "tfhe-compact", "--check-only")
@@ -48,10 +49,12 @@ def main() -> None:
             run(sys.executable, "tools/feasibility.py", "tfhe-codec")
             run(sys.executable, "tools/feasibility.py", "tfhe-eval")
             run(sys.executable, "tools/feasibility.py", "tfhe-compact")
+            run(sys.executable, "tools/qualify_release.py", "native")
         else:
             run("uv", "build", "--no-build-isolation", "--wheel")
     if args.level == "full":
         run(sys.executable, "tools/feasibility.py", "proof-modes")
+        run(sys.executable, "tools/qualify_release.py", "sp1")
 
 
 if __name__ == "__main__":

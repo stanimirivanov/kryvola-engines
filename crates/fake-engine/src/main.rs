@@ -1,5 +1,9 @@
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().skip(1).collect::<Vec<_>>() == ["--artifact-role"] {
+        println!("fake-evaluator");
+        return Ok(());
+    }
     if std::env::args().skip(1).collect::<Vec<_>>() != ["conformance"] {
         return Err("usage: kryvola-fake-engine conformance (test-only)".into());
     }

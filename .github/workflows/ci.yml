@@ -42,6 +42,7 @@ jobs:
           protoc --version
       - run: uv sync --locked
       - run: uv run --locked python tools/feasibility.py proof-modes
+      - run: uv run --locked python tools/qualify_release.py sp1
   verify:
     if: ${{ always() }}
     needs: [native, sp1]

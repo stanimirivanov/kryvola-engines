@@ -52,6 +52,11 @@ guests and requires real local CPU proof verification and negative controls.
 
 ## Authoritative context
 
+M0-PR23 adds [proof-mode measurements](docs/proof-feasibility.md).
+`uv run --locked python tools/feasibility.py proof-modes --check-only` validates
+the research matrix offline. Full execution measures two real Core CPU requests
+in a bounded local FIFO; unreviewed export modes remain disabled and unmeasured.
+
 - [Design v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-design-v2.md)
 - [Implementation plan v2](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/kryvola-implementation-plan-v2.md)
 - [Schema-stack amendment](https://github.com/stanimirivanov/kryvola-spec/blob/647986b9ba9cb2c6d3b853046272e3869b6fea5e/docs/adr/0001-schema-authoring.md): Redocly for OpenAPI; Effect v4 / TypeScript 7 author other contracts. Generated JSON/native structural projections keep this repository's approved runtime intact.

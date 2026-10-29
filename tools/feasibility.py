@@ -14,9 +14,10 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 if __package__:
-    from . import compact_results, sp1_relation, tfhe_results
+    from . import compact_results, proof_modes, sp1_relation, tfhe_results
 else:
     import compact_results
+    import proof_modes
     import sp1_relation
     import tfhe_results
 
@@ -28,6 +29,9 @@ CT_MAX = 1 << 20
 
 
 def configuration(experiment: str = "tfhe-codec") -> None:
+    if experiment == "proof-modes":
+        proof_modes.configuration()
+        return
     if experiment == "sp1-relation":
         sp1_relation.configuration()
         return
@@ -131,6 +135,8 @@ def _stop_group(child: subprocess.Popen[bytes]) -> None:
 
 
 def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
+    if experiment == "proof-modes":
+        return proof_modes.execute()
     if experiment == "sp1-relation":
         return sp1_relation.execute()
     if platform.system() != "Linux" or platform.machine() != "x86_64":
@@ -257,7 +263,8 @@ def execute(experiment: str = "tfhe-codec") -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "experiment", choices=["tfhe-codec", "tfhe-eval", "tfhe-compact", "sp1-relation"]
+        "experiment",
+        choices=["tfhe-codec", "tfhe-eval", "tfhe-compact", "sp1-relation", "proof-modes"],
     )
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()

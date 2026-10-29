@@ -1,5 +1,16 @@
 # Foundation progress
 
+## M0-PR23 — proof mode measurements
+
+Issue #15 adds a pinned candidate-mode matrix, two fresh-process real Core CPU
+samples, local FIFO queue/process timing, native prove/verify/size observations
+and strict cross-sample binding/accounting checks. Only public metadata Core
+research is admitted; Compressed/Groth16/PLONK remain disabled and unmeasured.
+No private export, production security or cross-mode performance claim is made.
+Local tests cover policy, accounting, CLI and orchestration. Full native/SP1 CI
+must pass on the implementation branch before creating the PR; actual evidence
+is recorded in the PR rather than inferred from this harness configuration.
+
 ## M0-PR22 — SP1 public-metadata relation
 
 Issue #13 adds a locked isolated SDK/guest experiment with checksum-pinned CLI

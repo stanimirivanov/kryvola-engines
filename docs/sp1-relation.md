@@ -65,12 +65,23 @@ production evidence release, native-FHE correctness claim or profile activation.
 Each proof request is limited to 1,000,000 guest cycles; the CPU trace shard is
 65,536, the executor minimal trace chunk threshold is 65,536 entries with two ring
 slots, and Rayon/Tokio workers are bounded to two. Executor buffering and proof
-shard size are independent settings. The upstream default trace ring exceeds the
-128 MiB file limit: POSIX shared-memory backing files also count toward that
-limit, so the experiment explicitly reduces buffering rather than raising it.
-Runtime controls separately
-limit address space to 16 GiB (not a physical-RSS guarantee), CPU/wall time to
-900 seconds, files to 128 MiB and core dumps to zero, with process-group cleanup.
+shard size are independent settings. Separately, the pinned native executor
+reserves a **2 TiB sparse shared-memory guest file**, even for a tiny guest:
+`MAX_JIT_LOG_ADDR = 40` gives 2^40 guest bytes and the transpiler doubles backing
+size for `(clk, word)` entries. Reducing the trace ring does not reduce that file.
+See the pinned [native runner](https://github.com/succinctlabs/sp1/blob/b8387fa61e1361d90ee7de49f551863418ca0f08/crates/core/runner/src/native.rs)
+and [transpiler](https://github.com/succinctlabs/sp1/blob/b8387fa61e1361d90ee7de49f551863418ca0f08/crates/core/executor/src/minimal/arch/x86_64/mod.rs).
+
+Runtime OS limits therefore allow files up to 2 TiB and address space up to
+4 TiB + 16 GiB, permitting overlapping sparse guest mappings during reset.
+These are logical file/virtual-address limits, **not disk allocation or physical
+RSS budgets**. The native SDK monitors guest-child RSS with a 1 GiB threshold;
+this is sampled enforcement and does not cap the host prover or process group.
+Hosted runner memory/storage limits still apply; OOM rejects the gate. A
+production process-group RSS/storage sandbox remains unqualified. The serialized
+proof is separately rejected above 128 MiB by the host and report validator;
+that is a post-serialization artifact cap, not the OS per-file limit. Runtime
+CPU/wall time remains 900 seconds and core dumps zero, with process-group cleanup.
 Each guest build has a 30-minute deadline, the single-job SDK build 40 minutes,
 and the hosted SP1 job 90 minutes. OOM, timeout, unavailable Docker or build/proof
 failure rejects the gate; execute-only or mock fallback never satisfies it.
@@ -80,7 +91,7 @@ remain pending. APIs were checked against the [pinned SDK source](https://github
 Runtime diagnostics expose fixed stage IDs and error categories, process exit
 status (negative values indicate signals), timeout and memory-error markers.
 Linux `SIGXFSZ` (exit -25) additionally emits `KRY_SP1_FILE_LIMIT`; it indicates
-the per-file limit was exceeded, including by shared-memory backing files.
+the 2 TiB OS per-file limit was exceeded, including by shared-memory backing files.
 Stage IDs are 1 preparation, 2 CPU initialization, 3 key setup, 4 successful
 proving, 5 journal checks, 6 verification, 7 journal rejection, 8 program/key
 rejection, 9 failed-execution proving, 10 failed-outcome rejection, 11 mock/dev

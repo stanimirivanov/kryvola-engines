@@ -27,6 +27,10 @@ CLI_URL = (
     "cargo_prove_v6.9.0_linux_amd64.tar.gz"
 )
 JOURNAL_BYTES = len(b"kryvola/research/public-metadata/v1\0") + 2 + 8 + 96 + 32
+# SP1 6.9's native JIT uses 2^40 guest bytes with two bytes of backing per byte.
+# These are sparse-file/virtual-address allowances, not physical memory budgets.
+JIT_BACKING_BYTES = 2 << 40
+ADDRESS_SPACE_BYTES = 2 * JIT_BACKING_BYTES + (16 << 30)
 
 
 def configuration() -> None:
@@ -147,8 +151,9 @@ def _limits():
         import resource
 
         for kind, maximum in (
-            (resource.RLIMIT_AS, 16 << 30),
-            (resource.RLIMIT_FSIZE, 128 << 20),
+            # Allow the native guest mapping plus overlap while resetting it.
+            (resource.RLIMIT_AS, ADDRESS_SPACE_BYTES),
+            (resource.RLIMIT_FSIZE, JIT_BACKING_BYTES),
             (resource.RLIMIT_CPU, 900),
             (resource.RLIMIT_CORE, 0),
         ):

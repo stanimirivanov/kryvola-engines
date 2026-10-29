@@ -48,10 +48,13 @@ async fn experiment() -> Result<(), Box<dyn std::error::Error>> {
     let expected = journal(fields, 1).ok_or("STATEMENT")?;
     let mut options = sp1_core_executor::SP1CoreOpts::default();
     options.shard_size = 1 << 16;
-    // The default shared-memory trace ring exceeds our 128 MiB file limit.
-    // Bound executor buffering independently of proof trace sharding.
+    // Bound executor buffering independently of proof trace sharding and the
+    // native JIT's fixed 2 TiB sparse guest-memory mapping.
     options.minimal_trace_chunk_threshold = 1 << 16;
     options.trace_chunk_slots = 2;
+    // Upstream's native runner monitors its guest child RSS separately from
+    // virtual address space. This does not cap the host prover's physical RSS.
+    options.memory_limit = 1 << 30;
     stage(2); // CPU client initialization
     let client = ProverClient::builder()
         .cpu()

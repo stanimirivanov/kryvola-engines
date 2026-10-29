@@ -63,18 +63,37 @@ class Sp1RelationTests(unittest.TestCase):
         self.assertEqual(output.getvalue().strip(), "KRY_SP1_EXIT=7")
 
     @unittest.skipUnless(sys.platform == "linux", "Linux resource-limit regression")
-    def test_sparse_jit_mapping_fits_but_larger_file_is_rejected(self):
+    def test_sparse_jit_mappings_fit_address_space_limit(self):
         # Reproduce the fixed native guest mapping without writing its pages,
-        # allocating large buffers, compiling the SDK or executing a proof.
+        # involving the runner's disk filesystem, or executing a proof.
         script = (
-            "import mmap, os, signal, tempfile; "
-            "signal.signal(signal.SIGXFSZ, signal.SIG_DFL); "
-            "f = tempfile.TemporaryFile(); "
-            f"os.ftruncate(f.fileno(), {sp1_relation.JIT_BACKING_BYTES}); "
-            "a = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ); "
+            "import mmap, os; "
+            "fd = os.memfd_create('kryvola-test'); "
+            f"os.ftruncate(fd, {sp1_relation.JIT_BACKING_BYTES}); "
+            "a = mmap.mmap(fd, 0, access=mmap.ACCESS_READ); "
             # Reset can temporarily retain two virtual mappings.
-            "b = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ); "
-            f"os.ftruncate(f.fileno(), {sp1_relation.JIT_BACKING_BYTES + 1})"
+            "b = mmap.mmap(fd, 0, access=mmap.ACCESS_READ); "
+            "b.close(); a.close(); os.close(fd)"
+        )
+        sp1_relation._run(
+            [sys.executable, "-c", script],
+            ROOT,
+            dict(os.environ),
+            10,
+            preexec_fn=sp1_relation._limits,
+        )
+
+    @unittest.skipUnless(sys.platform == "linux", "Linux resource-limit regression")
+    def test_file_limit_signal_has_explicit_diagnostic(self):
+        # Test signal classification with a tiny cap in a separate child. Do not
+        # combine fatal signals with teardown of terabyte-scale disk mappings.
+        script = (
+            "import os, resource, signal; "
+            "signal.signal(signal.SIGXFSZ, signal.SIG_DFL); "
+            "resource.setrlimit(resource.RLIMIT_FSIZE, (4096, 4096)); "
+            "fd = os.memfd_create('kryvola-test'); "
+            "os.ftruncate(fd, 4096); "
+            "os.ftruncate(fd, 4097)"
         )
         output = io.StringIO()
         with redirect_stderr(output), self.assertRaisesRegex(ValueError, "SP1_STAGE_FAILED"):

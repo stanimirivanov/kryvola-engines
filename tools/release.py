@@ -213,6 +213,12 @@ def verify(output, key=None, publish=False):
         raise ValueError("DISPOSITION_MISMATCH")
     if publish and key is not None:
         raise ValueError("KEYED_PUBLICATION_FORBIDDEN")
+    if (
+        publish
+        and manifest["source"]
+        != run("git", "rev-parse", "HEAD", cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    ):
+        raise ValueError("PUBLICATION_SOURCE_MISMATCH")
     if set(p.name for p in output.iterdir()) != {
         "manifest.json",
         "manifest.sigstore.json",
@@ -221,12 +227,17 @@ def verify(output, key=None, publish=False):
         "provenance.json",
     }:
         raise ValueError("UNEXPECTED_PACKAGE_CONTENT")
+    if any(
+        p.is_symlink()
+        or not p.is_file()
+        or p.stat().st_size > ((512 << 20) if p.name == "package.tar" else (16 << 20))
+        for p in output.iterdir()
+    ):
+        raise ValueError("PACKAGE_LIMIT_OR_LINK")
     if set(manifest["subjects"]) != {"package.tar", "sbom.json", "provenance.json"} or any(
         sha(output / name) != digest for name, digest in manifest["subjects"].items()
     ):
         raise ValueError("SUBJECT_MISMATCH")
-    if (output / "package.tar").stat().st_size > 512 << 20:
-        raise ValueError("PACKAGE_LIMIT")
     sbom = read(output / "sbom.json")
     if sbom.get("spdxVersion") != "SPDX-2.3" or not sbom.get("packages"):
         raise ValueError("MISSING_SBOM")

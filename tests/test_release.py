@@ -71,6 +71,11 @@ class ReleaseTests(unittest.TestCase):
             self.assertNotIn("--insecure-ignore-tlog", args)
             with self.assertRaisesRegex(ValueError, "KEYED_PUBLICATION_FORBIDDEN"):
                 release.verify(self.output, Path("self-selected.pub"), publish=True)
+            manifest = release.read(self.output / "manifest.json")
+            manifest["source"] = "b" * 40
+            release.write(self.output / "manifest.json", manifest)
+            with self.assertRaisesRegex(ValueError, "PUBLICATION_SOURCE_MISMATCH"):
+                release.verify(self.output, publish=True)
 
     def test_distribution_denials_and_nonreproducible_inputs(self):
         for role in ("cpu-evaluator", "owner-fixture", "local-prover"):

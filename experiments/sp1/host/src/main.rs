@@ -48,6 +48,10 @@ async fn experiment() -> Result<(), Box<dyn std::error::Error>> {
     let expected = journal(fields, 1).ok_or("STATEMENT")?;
     let mut options = sp1_core_executor::SP1CoreOpts::default();
     options.shard_size = 1 << 16;
+    // The default shared-memory trace ring exceeds our 128 MiB file limit.
+    // Bound executor buffering independently of proof trace sharding.
+    options.minimal_trace_chunk_threshold = 1 << 16;
+    options.trace_chunk_slots = 2;
     stage(2); // CPU client initialization
     let client = ProverClient::builder()
         .cpu()

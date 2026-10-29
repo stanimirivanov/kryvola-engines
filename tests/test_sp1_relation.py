@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
 import tarfile
@@ -60,6 +61,31 @@ class Sp1RelationTests(unittest.TestCase):
                 [sys.executable, "-c", "raise SystemExit(7)"], ROOT, dict(os.environ), 10
             )
         self.assertEqual(output.getvalue().strip(), "KRY_SP1_EXIT=7")
+
+    @unittest.skipUnless(sys.platform == "linux", "Linux resource-limit regression")
+    def test_file_limit_remains_enforced_with_explicit_diagnostic(self):
+        # Exercise ftruncate, also used by SP1's POSIX shared-memory ring. This
+        # allocates no large buffer and needs neither the SDK nor proof execution.
+        script = (
+            "import os, signal, tempfile; "
+            "signal.signal(signal.SIGXFSZ, signal.SIG_DFL); "
+            "f = tempfile.TemporaryFile(); "
+            "os.ftruncate(f.fileno(), 6 << 20); "
+            "os.ftruncate(f.fileno(), (128 << 20) + 1)"
+        )
+        output = io.StringIO()
+        with redirect_stderr(output), self.assertRaisesRegex(ValueError, "SP1_STAGE_FAILED"):
+            sp1_relation._run(
+                [sys.executable, "-c", script],
+                ROOT,
+                dict(os.environ),
+                10,
+                preexec_fn=sp1_relation._limits,
+            )
+        self.assertEqual(
+            output.getvalue().splitlines(),
+            [f"KRY_SP1_EXIT={-signal.Signals['SIGXFSZ'].value}", "KRY_SP1_FILE_LIMIT"],
+        )
 
     def test_host_build_and_launch_survive_a_blocked_docker_target(self):
         archive = io.BytesIO()

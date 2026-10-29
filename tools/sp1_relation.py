@@ -109,6 +109,8 @@ def _run(command, cwd, env, timeout, **kwargs):
         status = child.wait(timeout=timeout)
         if status != 0:
             print(f"KRY_SP1_EXIT={status}", file=sys.stderr)
+            if sys.platform == "linux" and status == -signal.SIGXFSZ:
+                print("KRY_SP1_FILE_LIMIT", file=sys.stderr)
             raise ValueError("SP1_STAGE_FAILED")
     except subprocess.TimeoutExpired:
         print("KRY_SP1_TIMEOUT", file=sys.stderr)

@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "status": "PENDING_AUTHENTICATED_REVIEW",
+  "bindings": {
+    "config/dependency-policy.json": "3a6c7bf328b5adbd34202d21a486e1ea623225d4e19bc2e26707daa187e6d4bc",
+    "experiments/tfhe/Cargo.lock": "538b6fb542f806bc38fb9773c285971aec6f02a9af94c84185fa02db3216991d",
+    "experiments/sp1/Cargo.lock": "e8ebfbe6b2cb50cbafd7f6c2431017b7cc28235b0ac5f563cc4d8cf7649ff38b",
+    "evidence/m0/campaign-summary.json": "5f7ed5054ffb5c6c462743650632b804a76ff6372de136608b0684b8590535d3"
+  },
+  "research": {
+    "engine_source": "f8023959081fa6a1e8169b41ef427630a5da72f3",
+    "platform_source": "571c8eb1ac87a985d3aaa9a6d04bce596b00312b",
+    "evidence_sha256": "5f7ed5054ffb5c6c462743650632b804a76ff6372de136608b0684b8590535d3",
+    "parameter_blake3": "cda9e129d55cc6a17060d8913f6e0d554c5a990e62c967514db86bf57a524674",
+    "program_blake3": "52687303e4a13081f0f40c15bfa0fafbf35812fb96a3d30f99206ee534c010f5",
+    "fixture_blake3": "684828b07eeb3efaece2ff3704d2e152b62af745de72fb7b30c9a3258662d544",
+    "source_tree_sha256": "70d3384a9bd260b41f56560623f3b8a4389c885a0d97180ebecdaf061a5d2f6b",
+    "proof_bindings": [
+      "3a801ad04218cc45b8609bc03c5daf623c25b06ffece2455bd92275d4586ed78",
+      "00af1acc62a7ff99a0a3d6838ed0ff5b23e6ee89c954bef074932b6da9ee8e6b",
+      "d6103223f9d14ff51117abc11c559e531ca9baec67429712bc64d2c441508ec6"
+    ]
+  },
+  "reviews": [
+    {
+      "dependency": "tfhe",
+      "version": "1.8.1",
+      "source_revision": "187fc0b95ab35352422deec6c027d0bd8743b6db",
+      "crate_sha256": "0d60dcde24115624e62a9a8dc627daa8d3dad40e8de69975957d12ee9ab70a2b",
+      "intended_use": "local_research",
+      "permission": "RESEARCH_ONLY",
+      "legal_decision": "PENDING",
+      "security_parameter_decision": "PENDING",
+      "reviewer_identity": null,
+      "authority": null,
+      "review_url": null,
+      "evidence_sha256": null,
+      "supersedes_sha256": null
+    },
+    {
+      "dependency": "tfhe",
+      "version": "1.8.1",
+      "source_revision": "187fc0b95ab35352422deec6c027d0bd8743b6db",
+      "crate_sha256": "0d60dcde24115624e62a9a8dc627daa8d3dad40e8de69975957d12ee9ab70a2b",
+      "intended_use": "artifact_distribution",
+      "permission": "DENY",
+      "legal_decision": "PENDING",
+      "security_parameter_decision": "PENDING",
+      "reviewer_identity": null,
+      "authority": null,
+      "review_url": null,
+      "evidence_sha256": null,
+      "supersedes_sha256": null
+    },
+    {
+      "dependency": "tfhe",
+      "version": "1.8.1",
+      "source_revision": "187fc0b95ab35352422deec6c027d0bd8743b6db",
+      "crate_sha256": "0d60dcde24115624e62a9a8dc627daa8d3dad40e8de69975957d12ee9ab70a2b",
+      "intended_use": "commercial_service",
+      "permission": "DENY",
+      "legal_decision": "PENDING",
+      "security_parameter_decision": "PENDING",
+      "reviewer_identity": null,
+      "authority": null,
+      "review_url": null,
+      "evidence_sha256": null,
+      "supersedes_sha256": null
+    },
+    {
+      "dependency": "sp1-sdk",
+      "version": "6.9.0",
+      "source_revision": "b8387fa61e1361d90ee7de49f551863418ca0f08",
+      "crate_sha256": "297c14b40e6a2c845c61e496f68f38dc04b6a249780cdac404656ff561516f2a",
+      "intended_use": "local_research",
+      "permission": "RESEARCH_ONLY",
+      "legal_decision": "PENDING",
+      "security_parameter_decision": "PENDING",
+      "reviewer_identity": null,
+      "authority": null,
+      "review_url": null,
+      "evidence_sha256": null,
+      "supersedes_sha256": null
+    },
+    {
+      "dependency": "sp1-sdk",
+      "version": "6.9.0",
+      "source_revision": "b8387fa61e1361d90ee7de49f551863418ca0f08",
+      "crate_sha256": "297c14b40e6a2c845c61e496f68f38dc04b6a249780cdac404656ff561516f2a",
+      "intended_use": "artifact_distribution",
+      "permission": "DENY",
+      "legal_decision": "PENDING",
+      "security_parameter_decision": "PENDING",
+      "reviewer_identity": null,
+      "authority": null,
+      "review_url": null,
+      "evidence_sha256": null,
+      "supersedes_sha256": null
+    },
+    {
+      "dependency": "sp1-sdk",
+      "version": "6.9.0",
+      "source_revision": "b8387fa61e1361d90ee7de49f551863418ca0f08",
+      "crate_sha256": "297c14b40e6a2c845c61e496f68f38dc04b6a249780cdac404656ff561516f2a",
+      "intended_use": "commercial_service",
+      "permission": "DENY",
+      "legal_decision": "PENDING",
+      "security_parameter_decision": "PENDING",
+      "reviewer_identity": null,
+      "authority": null,
+      "review_url": null,
+      "evidence_sha256": null,
+      "supersedes_sha256": null
+    }
+  ],
+  "exclusions": [
+    "PRODUCTION_PRIVATE_INFERENCE",
+    "PRIVATE_WITNESSES_AND_REMOTE_PROVERS",
+    "GPU_AND_ALTERNATE_PROOF_EXPORTS",
+    "SERVICE_LATENCY_AND_PROVER_GROUP_RSS_UNQUALIFIED"
+  ]
+}

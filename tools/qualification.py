@@ -7,11 +7,12 @@ import sys
 from pathlib import Path
 
 if __package__:
-    from . import compact_results, dependency_policy, proof_modes, tfhe_results
+    from . import compact_results, dependency_policy, proof_modes, review_dispositions, tfhe_results
 else:
     import compact_results
     import dependency_policy
     import proof_modes
+    import review_dispositions
     import tfhe_results
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -194,7 +195,19 @@ def validate(root=ROOT):
             require((root / name).resolve().is_relative_to(root.resolve()), "UNSAFE_SOURCE")
             require(digest(root / name) == expected, "CAMPAIGN_SOURCE_CHANGED")
     tfhe_results.fixture()
-    return evaluate(value)
+    result = evaluate(value)
+    bindings = {
+        **result,
+        "parameter_blake3": PARAMETER,
+        "program_blake3": PROGRAM,
+        "fixture_blake3": FIXTURE,
+        "source_tree_sha256": SOURCE_TREE_SHA256,
+        "proof_bindings": list(PROOF),
+    }
+    result["review_dispositions"] = review_dispositions.validate(
+        dependency_policy._read_json(root / review_dispositions.RECORD), root, bindings
+    )
+    return result
 
 
 def main():

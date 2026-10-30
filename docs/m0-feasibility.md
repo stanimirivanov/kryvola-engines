@@ -109,3 +109,30 @@ independent samples; establish adversarial memory/noise limits; review exact pro
 privacy/setup and resource sandboxing. Until then, TFHE/SP1 local research stays
 RESEARCH_ONLY, distribution/service DENY, legal review PENDING and production
 profiles disabled. This task does not close the remaining KRY-007/008 or M0 gates.
+
+## Pending scoped review packet (M0-CLOSE-PR2)
+
+`evidence/m0/review-dispositions.json` records pending legal and security/parameter
+review for each pinned TFHE/SP1 dependency and each intended use: local research,
+artifact distribution and commercial service. It binds the dependency policy,
+experiment locks, campaign evidence, source-tree digest, parameter/workload and
+proof identities. These are administrative review inputs, not new wire contracts.
+
+Every decision remains PENDING with no reviewer, authority or approval evidence.
+The qualification gate now validates the packet and returns an explicitly
+unauthenticated disposition. RESEARCH_ONLY and distribution/service DENY remain
+unchanged. Editing metadata cannot enable production, private witnesses or another
+proof mode. The frozen campaign bytes and historical decisions remain intact.
+
+Approval handling is deliberately not implemented here. Supply authenticated,
+use-specific legal and security decisions over the exact review subjects through
+the later review-verification and ratification work. Retain previous exact bytes;
+a successor must reference their digest and explain scope/condition changes.
+Withdrawn or superseded decisions cannot be reused as permission. This pending
+checker rejects all populated approval/supersession claims until that verified
+successor path exists; it does not authenticate a reviewer or grant rights.
+
+Run `uv run --locked python tools/qualification.py` and
+`uv run --locked python -m unittest tests.test_qualification tests.test_review_dispositions -v`.
+The existing fast/full harness invokes qualification; unit discovery includes the
+new tampering, scope, withdrawal, missing-input and promotion negative controls.

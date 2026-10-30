@@ -29,8 +29,7 @@ M0-PR19 adds an isolated [TFHE codec experiment](docs/tfhe-codec.md). Check its
 configuration with `uv run --locked python tools/feasibility.py tfhe-codec --check-only`.
 The full Linux CI harness compiles and executes the real owner/evaluator round
 trip and native negative cases. This does not enable a production engine/profile.
-The full native gate now requires Linux x86_64; Windows supports the lightweight
-configuration, Python and formatting checks.
+The full native gate requires Linux x86_64.
 
 M0-PR20 adds the [frozen circuit feasibility gate](docs/tfhe-eval.md):
 `uv run --locked python tools/feasibility.py tfhe-eval --check-only` checks the

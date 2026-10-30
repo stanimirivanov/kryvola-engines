@@ -123,9 +123,7 @@ The authoritative [plan](https://github.com/stanimirivanov/kryvola-spec/blob/647
 
 ## Observed acceptance evidence
 
-On Windows with Python 3.14.7 / uv 0.12.5, `uv run --locked python tools/verify.py full` passed: Ruff formatting/lint, ty type checks, spec provenance and dependency checks, 4 Python tests, 1 Rust boundary test and 1 CTest case, and Rust fmt/clippy/tests and CMake C++20 build/CTest. Native versions observed: Rust 1.98.1, CMake 3.29.2 and GNU C++ 16.1.0.
-
-A new disposable environment passed `uv sync --locked --no-editable`. The frozen tool environment passed provenance validation, and both native diagnostics ran. Diagnostics: `cargo run --locked -p kryvola-engine-api --example inspect; build/cpp/engine_foundation.exe`.
+A new disposable environment passed `uv sync --locked --no-editable`. The frozen tool environment passed provenance validation, and both native diagnostics ran. Diagnostics: `cargo run --locked -p kryvola-engine-api --example inspect; build/cpp/engine_foundation`.
 
 Root AGENTS.md discovery through nested working directories and local documentation links were checked. Existing LICENSE bytes are unchanged. Schema source commit and manifest digests are recorded in `spec.lock.json`; no sibling checkout is required.
 

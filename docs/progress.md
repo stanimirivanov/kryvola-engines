@@ -149,3 +149,18 @@ Local validation passed: all 51 Python tests (including eight focused
 qualification/disposition tests), Ruff formatting/lint, ty, cargo fmt and the
 offline qualification CLI. Heavy native crypto compilation/execution was not
 rerun; immutable experiment and campaign bytes are unchanged.
+
+## M0-CLOSE-PR6: fake-engine OCI publication
+
+Issue #25 adds digest-bound fake-image publication and verification with explicit
+archive/source/Dockerfile/SBOM/provenance bindings. A pulled image must match the
+signed single-role archive and pass read-only conformance. Publication permissions
+are isolated from qualification. No TFHE/SP1 permission or approval is changed.
+
+Local verification passed all 55 Python tests, Ruff formatting/lint, ty, cargo fmt,
+offline qualification and diff whitespace checks. OCI negatives cover digest-only
+subjects, archive/source/Dockerfile binding, signature failure, owner-file injection,
+binary substitution and fail-closed registry authorization errors. Docker was
+unavailable locally; real container builds/pulls/conformance, registry signatures
+and GitHub OIDC publication remain unexecuted here and required by the manual
+workflow. No image, release or profile was published or enabled.

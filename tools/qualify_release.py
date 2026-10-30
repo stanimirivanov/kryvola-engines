@@ -126,6 +126,10 @@ def qualify(role):
             "kryvola-runtime-check",
             "conformance",
         )
+    if role == "fake-evaluator":
+        release.run(
+            "docker", "save", "--output", root / "build/runtime-fake.tar", "kryvola-runtime-check"
+        )
     print(
         f"QUALIFIED_LOCAL_ONLY={role}; two clean target builds; real signature/wrong-signer control"
     )

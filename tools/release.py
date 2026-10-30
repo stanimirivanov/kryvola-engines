@@ -290,6 +290,13 @@ def verify(output, key=None, publish=False):
         if key
         else ["--certificate-identity", IDENTITY, "--certificate-oidc-issuer", ISSUER]
     )
+    if publish:
+        args += [
+            "--certificate-github-workflow-sha",
+            manifest["source"],
+            "--certificate-github-workflow-trigger",
+            "workflow_dispatch",
+        ]
     run(
         tool("cosign"),
         "verify-blob",

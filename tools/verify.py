@@ -25,6 +25,7 @@ def main() -> None:
     run("ty", "check")
     run(sys.executable, "tools/architecture.py")
     run(sys.executable, "tools/dependency_policy.py")
+    run(sys.executable, "tools/qualification.py")
     run(sys.executable, "tools/release.py", "verify")
     run(sys.executable, "tools/feasibility.py", "tfhe-codec", "--check-only")
     run(sys.executable, "tools/feasibility.py", "tfhe-eval", "--check-only")

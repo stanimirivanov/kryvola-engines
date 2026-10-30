@@ -1,5 +1,20 @@
 # Foundation progress
 
+## M0-PR35 — measured crypto decisions
+
+Issue #19 imports the exact numeric summary from platform PR18's immutable merge
+and publishes [research envelopes and exclusions](m0-feasibility.md). Two successful
+fixed-source campaigns support frozen uint8/compact-input experiments and public
+Core metadata research only. The offline gate reuses existing result parsers,
+pins reviewed experiment sources and rejects unsupported parameter/privacy claims,
+missing accuracy and exceeded resource bounds. Production private inference is
+NO-GO; service latency INCONCLUSIVE; security/parameter/legal review remains pending.
+
+Focused offline tests and the final branch CI results are recorded in the PR.
+No native crypto implementation, dependency, release permission or production
+profile is enabled. The historical dependency snapshot stays distinct from the
+new observed experimental build/runtime evidence; remaining M0 gates stay open.
+
 ## M0-PR24 — experimental package qualification
 
 Issue #17 adds separate fake/compute/owner/prover packages with binary role checks,

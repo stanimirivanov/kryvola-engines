@@ -164,3 +164,7 @@ binary substitution and fail-closed registry authorization errors. Docker was
 unavailable locally; real container builds/pulls/conformance, registry signatures
 and GitHub OIDC publication remain unexecuted here and required by the manual
 workflow. No image, release or profile was published or enabled.
+
+M1-PR1 adds opt-in verification of a [scoped TFHE review successor](scoped-crypto-review.md).
+The tests use ephemeral legal and parameter authorities to exercise real signatures,
+scope substitution, expiry, and withdrawal. Actual use decisions remain external.

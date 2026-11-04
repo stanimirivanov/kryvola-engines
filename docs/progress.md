@@ -168,3 +168,23 @@ workflow. No image, release or profile was published or enabled.
 M1-PR1 adds opt-in verification of a [scoped TFHE review successor](scoped-crypto-review.md).
 The tests use ephemeral legal and parameter authorities to exercise real signatures,
 scope substitution, expiry, and withdrawal. Actual use decisions remain external.
+
+## M1-PR13 owner crypto
+
+The standalone, unpublished `crates/owner-crypto` package uses the pinned TFHE
+1.8.1 CPU research profile. It keeps the client key opaque in the owner process,
+exports compressed evaluation material, and encrypts a fixed pair of uint8
+values. Result opening requires the expected evaluation-key and result blob
+commitments before bounded native decoding and exact pair validation.
+
+The owner must establish those commitments through independent authorization.
+TFHE parameter conformance alone cannot distinguish ciphertexts from separate
+keys with the same parameters. The library has no signing, custody, network
+service or publication entry point. Existing distribution and service denials
+still apply.
+
+Run `cargo test --release --locked --manifest-path crates/owner-crypto/Cargo.toml`
+for the owner gate. The native verifier runs it alongside the existing
+experiments. The test evaluator receives evaluation material and ciphertexts
+through its arguments. The test runs in one process and establishes arithmetic
+and API behavior, while process isolation is covered separately.

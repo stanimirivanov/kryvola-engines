@@ -1,18 +1,28 @@
 """Offline M0 research disposition; never production or legal authorization."""
 
+import argparse
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 if __package__:
-    from . import compact_results, dependency_policy, proof_modes, review_dispositions, tfhe_results
+    from . import (
+        compact_results,
+        dependency_policy,
+        proof_modes,
+        review_dispositions,
+        review_successor,
+        tfhe_results,
+    )
 else:
     import compact_results
     import dependency_policy
     import proof_modes
     import review_dispositions
+    import review_successor
     import tfhe_results
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -211,10 +221,30 @@ def validate(root=ROOT):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--review", type=Path)
+    parser.add_argument("--policy", type=Path)
+    parser.add_argument("--policy-sha256")
+    parser.add_argument("--intended-use", choices=sorted(review_successor.USES))
+    parser.add_argument("--artifact-sha256")
+    args = parser.parse_args()
+    requested = vars(args)
+    if any(value is not None for value in requested.values()) and not all(requested.values()):
+        parser.error("scoped verification requires all five arguments")
     try:
-        print(json.dumps(validate(), sort_keys=True))
+        result = validate()
+        if args.review is not None:
+            result["scoped_review"] = review_successor.verify(
+                args.review,
+                args.policy,
+                args.policy_sha256,
+                digest(ROOT / review_dispositions.RECORD),
+                args.intended_use,
+                args.artifact_sha256,
+            )
+        print(json.dumps(result, sort_keys=True))
         return 0
-    except ValueError, KeyError, TypeError, OSError, AttributeError:
+    except ValueError, KeyError, TypeError, OSError, AttributeError, subprocess.TimeoutExpired:
         print("qualification: REJECTED", file=sys.stderr)
         return 1
 

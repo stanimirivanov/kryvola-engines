@@ -56,6 +56,7 @@ def main() -> None:
                 "--manifest-path",
                 "crates/owner-crypto/Cargo.toml",
             )
+            run(sys.executable, "tools/owner_wheel.py")
             run(sys.executable, "tools/feasibility.py", "tfhe-codec")
             run(sys.executable, "tools/feasibility.py", "tfhe-eval")
             run(sys.executable, "tools/feasibility.py", "tfhe-compact")

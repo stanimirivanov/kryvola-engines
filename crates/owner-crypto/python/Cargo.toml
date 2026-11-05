@@ -1,0 +1,15 @@
+[package]
+name = "kryvola-owner-python"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+name = "kryvola_owner"
+crate-type = ["cdylib"]
+
+[dependencies]
+kryvola-owner-crypto = { path = "..", version = "=0.1.0" }
+pyo3 = { version = "=0.27.1", features = ["extension-module"] }

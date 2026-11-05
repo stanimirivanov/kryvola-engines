@@ -34,6 +34,7 @@ def main() -> None:
     run(sys.executable, "tools/feasibility.py", "proof-modes", "--check-only")
     if REPO in {"kryvola-fabric", "kryvola-engines"}:
         run("cargo", "fmt", "--all", "--check")
+        run("cargo", "fmt", "--manifest-path", "crates/owner-crypto/Cargo.toml", "--all", "--check")
         run("cargo", "fmt", "--manifest-path", "experiments/tfhe/Cargo.toml", "--all", "--check")
         run("cargo", "fmt", "--manifest-path", "experiments/sp1/Cargo.toml", "--all", "--check")
         run("cargo", "clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings")
@@ -47,6 +48,14 @@ def main() -> None:
             run("cmake", "-S", "cpp", "-B", "build/cpp", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug")
             run("cmake", "--build", "build/cpp")
             run("ctest", "--test-dir", "build/cpp", "--output-on-failure")
+            run(
+                "cargo",
+                "test",
+                "--release",
+                "--locked",
+                "--manifest-path",
+                "crates/owner-crypto/Cargo.toml",
+            )
             run(sys.executable, "tools/feasibility.py", "tfhe-codec")
             run(sys.executable, "tools/feasibility.py", "tfhe-eval")
             run(sys.executable, "tools/feasibility.py", "tfhe-compact")

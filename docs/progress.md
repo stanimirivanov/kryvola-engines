@@ -204,3 +204,21 @@ Python tests and both Rust owner tests pass; the latter includes frozen evaluate
 fixtures. Fast checks pass. The complete native suite remains unavailable locally
 because CMake/Ninja are absent; its canonical CI path includes the wheel gate.
 These results grant no TFHE distribution/service permission or production status.
+
+## Parallel CI gates
+
+Issue #33 removes duplicate feature/fix branch push runs and partitions the
+existing native and SP1 gates across independent jobs. Each native qualification
+role retains both clean builds and all controls. SP1 measurements and qualification
+consume the same source/digest-bound guest artifacts in parallel after guest
+preparation. Both FIFO samples remain together. The aggregate `verify` check fails
+unless every required job succeeds. Historical source/evidence pins, permission
+denials and manual publication workflows are unchanged. See [parallel CI](parallel-ci.md).
+
+Local validation passes all 68 Python tests (including nine new partition,
+artifact-admission and FIFO controls), canonical fast checks, Rust workspace
+checks/conformance, CMake/CTest and both inspect executables. All affected
+workflows pass Actionlint 1.7.12. Temporary CMake/Ninja tools enabled the C++
+checks without adding repository dependencies. Real SP1 jobs, cold native
+qualification and hosted timing remain to be validated by the PR workflow;
+unit fixtures are not proof-execution evidence.

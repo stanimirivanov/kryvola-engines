@@ -188,3 +188,19 @@ for the owner gate. The native verifier runs it alongside the existing
 experiments. The test evaluator receives evaluation material and ciphertexts
 through its arguments. The test runs in one process and establishes arithmetic
 and API behavior, while process isolation is covered separately.
+
+## M1-PR14 Python owner package
+
+`crates/owner-crypto/python` adds the unpublished PyO3 binding crate and a
+CPython 3.14 `kryvola-owner` research wheel. Its opaque handle exports only public
+evaluation material, fixed-pair encryption, and commitment-bound result opening.
+It has no client-key serialization, generic decryption API, SDK transport, or
+publication entry point. See [the API and local wheel gate](owner-python.md).
+
+The installed-wheel gate passes five tests in a fresh isolated environment,
+including real native round trips, invalid commitments/lengths/framing/version,
+sanitized errors, and rejected pickle/copy/attribute access. All 59 existing
+Python tests and both Rust owner tests pass; the latter includes frozen evaluated
+fixtures. Fast checks pass. The complete native suite remains unavailable locally
+because CMake/Ninja are absent; its canonical CI path includes the wheel gate.
+These results grant no TFHE distribution/service permission or production status.

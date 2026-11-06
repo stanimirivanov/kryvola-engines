@@ -39,3 +39,8 @@ No `.codex/config.toml` or repository skill is needed for the current workflow. 
 retaining the required `verify` aggregate, clean-build qualification, and both
 FIFO proof samples. SP1 consumers validate the producer's artifact ID, manifest
 pin, source revision, pinned inputs and ELF digests before native execution.
+
+The [CPU evaluator research package](cpu-evaluator.md) is separate from the owner
+library and Python bindings. Its runtime accepts public evaluation material and
+bound fixed-shape ciphertexts; owner crypto is a test-only controller dependency.
+Native evaluation tests and binary/dependency inspection run in the TFHE CI job.

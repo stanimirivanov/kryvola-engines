@@ -15,7 +15,7 @@ updated to require `verify`; this change does not edit remote protection rules.
 | --- | --- | --- |
 | `foundation` | Canonical fast checks; full Python regressions; Rust workspace tests; fake RPC conformance; CMake/CTest; API inspection and C++ executable | None |
 | `owner` | Both Rust owner tests and installed research-wheel tests | Foundation |
-| `tfhe` | Codec, evaluation, and compact-input experiments sharing a target directory | Foundation |
+| `tfhe` | Codec, evaluation, and compact-input experiments sharing a target directory; separate CPU package tests and binary boundary gate | Foundation |
 | `native-qualification` matrix | Fake evaluator, CPU evaluator, owner fixture; each role retains two clean builds, archive/signature controls and applicable Docker/API negatives | Foundation |
 | `sp1-build` | Pinned CLI/archive validation and Docker guest builds for metadata and alternate ELFs | Foundation |
 | `sp1-measurements` | Host build, two fresh-process FIFO samples, real verifier and all seven native negative controls per sample | SP1 build |

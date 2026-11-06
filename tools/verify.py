@@ -35,6 +35,9 @@ def main() -> None:
     if REPO in {"kryvola-fabric", "kryvola-engines"}:
         run("cargo", "fmt", "--all", "--check")
         run("cargo", "fmt", "--manifest-path", "crates/owner-crypto/Cargo.toml", "--all", "--check")
+        run(
+            "cargo", "fmt", "--manifest-path", "crates/cpu-evaluator/Cargo.toml", "--all", "--check"
+        )
         run("cargo", "fmt", "--manifest-path", "experiments/tfhe/Cargo.toml", "--all", "--check")
         run("cargo", "fmt", "--manifest-path", "experiments/sp1/Cargo.toml", "--all", "--check")
         run("cargo", "clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings")
@@ -57,6 +60,15 @@ def main() -> None:
                 "crates/owner-crypto/Cargo.toml",
             )
             run(sys.executable, "tools/owner_wheel.py")
+            run(
+                "cargo",
+                "test",
+                "--release",
+                "--locked",
+                "--manifest-path",
+                "crates/cpu-evaluator/Cargo.toml",
+            )
+            run(sys.executable, "tools/cpu_boundary.py")
             run(sys.executable, "tools/feasibility.py", "tfhe-codec")
             run(sys.executable, "tools/feasibility.py", "tfhe-eval")
             run(sys.executable, "tools/feasibility.py", "tfhe-compact")

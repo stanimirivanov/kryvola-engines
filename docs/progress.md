@@ -222,3 +222,25 @@ workflows pass Actionlint 1.7.12. Temporary CMake/Ninja tools enabled the C++
 checks without adding repository dependencies. Real SP1 jobs, cold native
 qualification and hosted timing remain to be validated by the PR workflow;
 unit fixtures are not proof-execution evidence.
+
+## M1-PR15 CPU evaluator package
+
+The unpublished `crates/cpu-evaluator` library/executable evaluates only the frozen
+FHE-Q1 uint8 circuit from public evaluation material and bound ciphertexts. It
+checks complete blob commitments, bounded exact pair framing and native
+version/parameter conformance before evaluation. The runtime dependency graph and
+linked worker are inspected for owner/Python package leakage. Owner keys remain
+in the test controller; no owner/decrypt operation is accepted by the worker.
+
+The gate covers frozen edge fixtures in a separate worker process and rejects
+wrong commitments, malformed native bytes/parameters, oversize/truncated/trailing
+material, forbidden commands, and result overwrite. Both canonical native checks
+and the parallel TFHE partition include it. See [CPU evaluator](cpu-evaluator.md)
+for exact commands, API boundaries and research-only limitations.
+
+Local verification passes all five evaluator native tests, all 69 Python
+regressions, the actual normal-dependency/linked-binary boundary check, strict
+standalone release Clippy, and the canonical fast gate. Real public-material-only
+worker subprocesses match the four frozen edge fixtures. Cold CI builds and the
+broader unchanged native/SP1 suites are not claimed as locally rerun; the new
+evaluator gates execute in the existing parallel TFHE job.

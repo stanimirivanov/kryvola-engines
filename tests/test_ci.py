@@ -39,5 +39,16 @@ class CiTests(unittest.TestCase):
             tuple(
                 (ci.PYTHON, "tools/feasibility.py", mode)
                 for mode in ("tfhe-codec", "tfhe-eval", "tfhe-compact")
+            )
+            + (
+                (
+                    "cargo",
+                    "test",
+                    "--release",
+                    "--locked",
+                    "--manifest-path",
+                    "crates/cpu-evaluator/Cargo.toml",
+                ),
+                (ci.PYTHON, "tools/cpu_boundary.py"),
             ),
         )

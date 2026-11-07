@@ -12,8 +12,25 @@ pub const KEY_MAX: usize = 64 << 20;
 const CIPHERTEXT_MAX: usize = 1 << 20;
 pub const PAIR_MAX: usize = 2 * (8 + CIPHERTEXT_MAX);
 
+/// Public capability of this fixed CPU kernel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Capability {
+    pub profile: &'static str,
+    pub assurance: &'static str,
+    pub program_digest: &'static str,
+    pub parameter_set_digest: &'static str,
+}
+
+pub const CAPABILITY: Capability = Capability {
+    profile: "FHE-Q1",
+    assurance: "CONFIDENTIALITY_ONLY",
+    program_digest: "52687303e4a13081f0f40c15bfa0fafbf35812fb96a3d30f99206ee534c010f5",
+    parameter_set_digest: "cda9e129d55cc6a17060d8913f6e0d554c5a990e62c967514db86bf57a524674",
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EvaluationError {
+    Program,
     Size,
     Binding,
     Framing,
@@ -23,6 +40,7 @@ pub enum EvaluationError {
 impl EvaluationError {
     pub fn code(self) -> &'static str {
         match self {
+            Self::Program => "EVALUATOR_PROGRAM",
             Self::Size => "EVALUATOR_SIZE",
             Self::Binding => "EVALUATOR_BINDING",
             Self::Framing => "EVALUATOR_FRAMING",
@@ -46,6 +64,19 @@ pub fn blob_digest(bytes: &[u8]) -> [u8; 32] {
         .update(bytes)
         .finalize()
         .as_bytes()
+}
+
+/// Match the program digest from the independently authorized plan before decoding.
+pub fn evaluate_program(
+    program_digest: &str,
+    binding: EvaluationBinding,
+    key: &[u8],
+    input: &[u8],
+) -> Result<Vec<u8>, EvaluationError> {
+    if program_digest != CAPABILITY.program_digest {
+        return Err(EvaluationError::Program);
+    }
+    evaluate(binding, key, input)
 }
 
 /// Evaluate the frozen uint8 modular circuit; no arbitrary program is accepted.

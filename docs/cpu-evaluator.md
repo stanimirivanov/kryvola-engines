@@ -1,6 +1,6 @@
 # Decrypt-free CPU research evaluator
 
-M1-PR15 adds the standalone, unpublished `crates/cpu-evaluator` package. Its
+The standalone, unpublished `crates/cpu-evaluator` package provides the M1-PR16 kernel. Its
 Rust API accepts public compressed evaluation material and an encrypted uint8
 pair, then executes only the frozen FHE-Q1 circuit:
 
@@ -25,6 +25,12 @@ hostile bytes alongside an untrusted key does not establish authorization or
 prove that the ciphertext was encrypted under that key. Native parameter
 conformance cannot distinguish different client keys with identical parameters.
 
+Use `evaluate_program(program_digest, binding, key_bytes, input_bytes)` to
+compare the program reference from an approved plan before native decoding.
+`CAPABILITY` identifies the frozen public program and parameter digests and
+advertises `CONFIDENTIALITY_ONLY`. Evaluator output carries no computation
+integrity claim.
+
 The commitment is Spec BLAKE3 over `kryvola/blob/v1\0` plus the complete blob.
 Keys are compressed TFHE server keys, capped at 64 MiB. Input/output pair framing
 is two uint64 little-endian lengths followed by their native ciphertexts; each
@@ -38,15 +44,16 @@ network, owner-agent, or Ray entry point in this package.
 
 ```sh
 cargo build --release --locked --manifest-path crates/cpu-evaluator/Cargo.toml
-crates/cpu-evaluator/target/release/kryvola-cpu-evaluator --help
+crates/cpu-evaluator/target/release/kryvola-cpu-evaluator --capabilities
 crates/cpu-evaluator/target/release/kryvola-cpu-evaluator evaluate \
-  evaluation.bin input.bin output.bin "$expected_key_digest" "$expected_input_digest"
+  evaluation.bin input.bin output.bin "$expected_key_digest" "$expected_input_digest" "$program_digest"
 cargo test --release --locked --manifest-path crates/cpu-evaluator/Cargo.toml
 uv run --locked python tools/cpu_boundary.py
 ```
 
 The launcher supplies trusted local regular-file paths and lowercase 64-character
-commitments. File reads are length-bounded, including files that grow during a
+commitments. The optional program digest selects the fixed graph explicitly. An
+unknown digest returns `EVALUATOR_PROGRAM` before file access. File reads are length-bounded, including files that grow during a
 read. A result file is created only after evaluation and is never overwritten.
 Native errors are fixed `EVALUATOR_SIZE`, `EVALUATOR_BINDING`,
 `EVALUATOR_FRAMING`, or `EVALUATOR_NATIVE`; file/argument failures are
@@ -55,9 +62,12 @@ paths or blob contents. The local file adapter is not an artifact finalization
 protocol, filesystem sandbox, or wall-time/physical-memory supervisor. Its
 launcher must supply those process and storage controls before service use.
 
-Five Rust tests cover bounded/invalid native material and parameters, forbidden
-owner commands, malformed commitments, and real separate-process round trips for
-frozen fixture indices 0, 9, 90 and 99. The worker directory holds public evaluation
+The native differential test runs all 100 frozen vectors, four explicit uint8
+boundaries, and 16 seeded pairs through the production kernel and compares the
+opened results to an independent modular reference. Separate-process tests
+cover the file adapter and owner-command rejections. Native negatives cover
+oversized lengths, malformed framing, incorrect commitments, and alternate
+evaluation-key and ciphertext parameters. The worker directory holds public evaluation
 material and ciphertexts only; the controller retains its opaque owner key in
 memory. The existing historical experiment still checks all 100 frozen cases.
 The boundary gate inspects normal Cargo dependencies and the linked worker's

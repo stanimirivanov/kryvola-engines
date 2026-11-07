@@ -44,6 +44,17 @@ COMMANDS = {
     "tfhe": tuple(
         (PYTHON, "tools/feasibility.py", mode)
         for mode in ("tfhe-codec", "tfhe-eval", "tfhe-compact")
+    )
+    + (
+        (
+            "cargo",
+            "test",
+            "--release",
+            "--locked",
+            "--manifest-path",
+            "crates/cpu-evaluator/Cargo.toml",
+        ),
+        (PYTHON, "tools/cpu_boundary.py"),
     ),
 }
 

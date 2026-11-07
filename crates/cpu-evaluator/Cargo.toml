@@ -1,0 +1,22 @@
+[package]
+name = "kryvola-cpu-evaluator"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+publish = false
+
+[workspace]
+
+[dependencies]
+blake3 = "=1.8.7"
+tfhe = { version = "=1.8.1", default-features = false, features = ["integer", "software-prng", "zk-pok"] }
+
+[dev-dependencies]
+kryvola-owner-crypto = { path = "../owner-crypto", version = "=0.1.0" }
+
+[profile.release]
+opt-level = 1
+debug = 0
+lto = false
+codegen-units = 64

@@ -185,9 +185,17 @@ still apply.
 
 Run `cargo test --release --locked --manifest-path crates/owner-crypto/Cargo.toml`
 for the owner gate. The native verifier runs it alongside the existing
-experiments. The test evaluator receives evaluation material and ciphertexts
-through its arguments. The test runs in one process and establishes arithmetic
-and API behavior, while process isolation is covered separately.
+experiments. The owner conformance test executes all 100 frozen cases and four explicit
+uint8 boundaries. Its evaluator accepts evaluation-key and ciphertext bytes
+and checks that each native object consumes its entire frame and rejects
+client-key decoding. Compile-fail checks cover client-key field access, debug
+formatting and native serialization of the opaque owner handle.
+
+The wrong-parameter case uses valid TFHE ciphertexts generated with alternate
+message and carry parameters. Independently computed outer commitments bind
+the exact pair, and the owner rejects it at native conformance. These tests
+exercise arithmetic and API behavior within one process. Process isolation
+has a separate gate.
 
 ## M1-PR14 Python owner package
 

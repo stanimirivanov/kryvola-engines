@@ -23,7 +23,24 @@ pub enum OwnerError {
 
 type Result<T> = std::result::Result<T, OwnerError>;
 
-/// Opaque process-local client key. Only evaluation material is exportable.
+/// Opaque process-local client key. The public byte export is evaluation material.
+///
+/// ```compile_fail
+/// use kryvola_owner_crypto::OwnerKey;
+/// fn extract(owner: OwnerKey) { let _client = owner.client; }
+/// ```
+///
+/// ```compile_fail
+/// use kryvola_owner_crypto::OwnerKey;
+/// fn debug(owner: OwnerKey) { let _description = format!("{owner:?}"); }
+/// ```
+///
+/// ```compile_fail
+/// use kryvola_owner_crypto::OwnerKey;
+/// fn serialize(owner: &OwnerKey) {
+///     let _ = tfhe::safe_serialization::safe_serialize(owner, std::io::sink(), 1 << 20);
+/// }
+/// ```
 pub struct OwnerKey {
     client: ClientKey,
     evaluation: Vec<u8>,

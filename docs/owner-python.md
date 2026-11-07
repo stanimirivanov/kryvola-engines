@@ -23,8 +23,10 @@ are not qualified. The local gate targets the pinned CPython 3.14.7 toolchain.
 - `key.open_result(ciphertext, evaluation_key_digest, result_blob_digest)` accepts
   bytes and two 32-byte commitments, and returns exactly two plaintext bytes.
   The native library bounds and validates the result before decryption.
-- `blob_digest(bytes)` returns the Spec BLAKE3 full-blob commitment. It is a hash,
-  not an approval or a release authorization verifier.
+- `blob_digest(bytes)` returns the Spec BLAKE3 full-blob commitment for zero to
+  64 MiB inclusive. Starting with wheel version `0.1.0.dev1`, larger inputs raise
+  `ValueError("OWNER_SIZE")` before hashing. Empty input remains valid for the
+  hash helper. Artifact admission and release authorization are separate checks.
 
 The caller must establish both expected commitments through independent owner
 verification of the exact release authorization. Computing a digest over hostile
@@ -49,7 +51,9 @@ uv run --locked python tools/owner_wheel.py
 The gate checks the existing research dependency policy, builds with
 `maturin build --release --locked`, records the wheel SHA-256, installs it without
 network dependencies into a fresh temporary environment, and runs
-`tests/owner_wheel.py` with isolated Python imports (`-I`). Temporary wheel and
+`tests/owner_wheel.py` with isolated Python imports (`-I`). The gate injects a shadow module via
+`PYTHONPATH` and checks that both imported modules belong to the installed
+distribution. Temporary wheel and
 environment files are removed after the gate. The canonical native verifier also
 runs this gate. A local build can take several minutes on a cold TFHE cache.
 

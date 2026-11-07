@@ -29,14 +29,20 @@ class InstalledOwnerTests(unittest.TestCase):
 
     def test_installed_native_package(self):
         self.assertEqual(sys.version_info[:2], (3, 14))
-        self.assertEqual(importlib.metadata.version("kryvola-owner"), "0.1.0.dev0")
-        self.assertTrue(
-            Path(str(owner.__file__)).resolve().is_relative_to(Path(sys.prefix).resolve())
-        )
+        self.assertTrue(sys.flags.isolated)
+        self.assertNotEqual(sys.prefix, sys.base_prefix)
+        distribution = importlib.metadata.distribution("kryvola-owner")
+        self.assertEqual(distribution.version, "0.1.0.dev1")
+        files = distribution.files
+        self.assertIsNotNone(files)
+        installed_files = {
+            Path(str(distribution.locate_file(file))).resolve() for file in files or ()
+        }
         native = importlib.import_module("kryvola_owner.kryvola_owner")
-        self.assertTrue(
-            Path(str(native.__file__)).resolve().is_relative_to(Path(sys.prefix).resolve())
-        )
+        for module in (owner, native):
+            path = Path(str(module.__file__)).resolve()
+            self.assertTrue(path.is_relative_to(Path(sys.prefix).resolve()))
+            self.assertIn(path, installed_files)
         self.assertTrue(
             any(str(native.__file__).endswith(s) for s in importlib.machinery.EXTENSION_SUFFIXES)
         )
@@ -46,6 +52,17 @@ class InstalledOwnerTests(unittest.TestCase):
             {name for name in dir(native) if not name.startswith("_")},
             {"OwnerKey", "blob_digest"},
         )
+
+    def test_blob_digest_bounds(self):
+        maximum = 64 * 1024 * 1024
+        empty = owner.blob_digest(b"")
+        self.assertIsInstance(empty, bytes)
+        self.assertEqual(len(empty), 32)
+        self.assertEqual(len(owner.blob_digest(bytes(maximum))), 32)
+        with self.assertRaisesRegex(ValueError, "^OWNER_SIZE$"):
+            owner.blob_digest(bytes(maximum + 1))
+        with self.assertRaises(TypeError):
+            owner.blob_digest("secret-marker")
 
     def test_round_trip_fixed_uint8_pair(self):
         self.assertIsInstance(self.evaluation, bytes)

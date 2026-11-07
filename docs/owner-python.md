@@ -57,13 +57,40 @@ distribution. Temporary wheel and
 environment files are removed after the gate. The canonical native verifier also
 runs this gate. A local build can take several minutes on a cold TFHE cache.
 
-The wheel carries the `Private :: Do Not Upload` classifier. This is a warning,
-not access control. Neither this classifier nor passing tests grants artifact
-distribution or commercial service permission. Existing TFHE permission denials
-and release provenance requirements remain unchanged. Do not publish this research
-wheel: a future publication path must enforce the independently pinned,
-artifact-specific [scoped review](scoped-crypto-review.md) and applicable release
-provenance checks at the publication boundary.
+## Exact wheel qualification
+
+The research gate records `DENY` for the wheel and exercises qualification
+with temporary fixture keys and synthetic source and lock pins. The fixture
+installs the verified snapshot in a fresh environment and runs the same
+isolated API checks. Its result is labelled `OWNER_WHEEL_TEST_FIXTURE_QUALIFIED`.
+
+To verify a candidate using operator evidence, supply the complete argument set:
+
+```sh
+uv run --locked python tools/owner_wheel.py \
+  --wheel "$wheel" --packet "$packet" --policy "$operator_policy" \
+  --policy-sha256 "$trusted_policy_sha256" --source "$trusted_engines_revision" \
+  --lock-sha256 "$trusted_owner_cargo_lock_sha256" --builder "$trusted_builder_key"
+```
+
+Use independently trusted pins for the current operator policy, the Engines
+revision, and the SHA-256 of `crates/owner-crypto/Cargo.lock` at that revision.
+The builder key is lowercase hex DER Ed25519 SubjectPublicKeyInfo provisioned
+by the operator. The packet includes the [scoped approval](scoped-crypto-review.md)
+for `artifact_distribution` over the wheel SHA-256, plus `provenance.json`
+and its raw 64-byte Ed25519 signature in `builder.sig`.
+
+The closed version 1 provenance JSON has integer `version`, `role` set to
+`owner-wheel`, `repository` set to `https://github.com/stanimirivanov/kryvola-engines`,
+the pinned commit in `source`, the pinned lock digest in `cargo_lock_sha256`,
+and `subject` containing the exact wheel basename and digest as `name` and
+`sha256`. The builder signs the exact JSON bytes.
+
+Qualification verifies the signed approval and provenance before installing
+the same private wheel snapshot. A successful run emits a JSON qualification
+record for that wheel, including the review expiry. Permission remains scoped
+to the signed decision and current operator policy. The repository’s pending
+review records and release publication controls continue to govern distribution.
 
 References: [PyO3 0.27.1](https://docs.rs/pyo3/0.27.1/pyo3/),
 [maturin build workflow](https://www.maturin.rs/distribution.html),

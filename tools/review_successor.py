@@ -52,11 +52,11 @@ def verify_signatures(packet: Path, data: bytes, keys: dict[str, str]) -> None:
     with tempfile.TemporaryDirectory() as directory:
         scratch = Path(directory)
         (scratch / "decision").write_bytes(data)
-        for role in ROLES:
+        for role, key in keys.items():
             signature = read(packet / f"{role}.sig", 64)
             policy.require(len(signature) == 64, "INVALID_REVIEW_SIGNATURE")
             (scratch / "signature").write_bytes(signature)
-            (scratch / "key").write_bytes(bytes.fromhex(keys[role]))
+            (scratch / "key").write_bytes(bytes.fromhex(key))
             result = subprocess.run(
                 [
                     "openssl",

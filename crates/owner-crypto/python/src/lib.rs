@@ -70,10 +70,15 @@ impl Key {
     }
 }
 
-/// Spec commitment of public artifact bytes; this is not authorization.
+const BLOB_DIGEST_MAX: usize = 64 << 20;
+
+/// Hash 0 to 64 MiB of public artifact bytes. Verify release authorization separately.
 #[pyfunction]
-fn blob_digest<'py>(py: Python<'py>, bytes: &[u8]) -> Bound<'py, PyBytes> {
-    PyBytes::new(py, &kryvola_owner_crypto::blob_digest(bytes))
+fn blob_digest<'py>(py: Python<'py>, bytes: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
+    if bytes.len() > BLOB_DIGEST_MAX {
+        return Err(error(OwnerError::Size));
+    }
+    Ok(PyBytes::new(py, &kryvola_owner_crypto::blob_digest(bytes)))
 }
 
 // Retain the GIL requirement until free-threaded execution is separately qualified.

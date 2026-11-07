@@ -15,13 +15,13 @@ else:
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(*command: str) -> None:
+def run(*command: str, extra_env: dict[str, str] | None = None) -> None:
     print("+ " + " ".join(command), flush=True)
     subprocess.run(
         command,
         cwd=ROOT,
         check=True,
-        env=os.environ | {"CARGO_BUILD_JOBS": "2", "RAYON_NUM_THREADS": "2"},
+        env=os.environ | {"CARGO_BUILD_JOBS": "2", "RAYON_NUM_THREADS": "2"} | (extra_env or {}),
     )
 
 
@@ -50,8 +50,16 @@ def main() -> None:
         run("uv", "venv", "--python", sys.executable, str(environment))
         python = environment / "bin/python"
         run("uv", "pip", "install", "--python", str(python), "--no-index", "--no-deps", str(wheel))
-        # -I excludes checkout/PYTHONPATH and user site packages from imports.
-        run(str(python), "-I", str(ROOT / "tests/owner_wheel.py"))
+        # A checkout-path shadow fails if the installed tests lose isolated imports.
+        (root / "kryvola_owner.py").write_text(
+            'raise RuntimeError("owner wheel import escaped isolation")\n', encoding="utf-8"
+        )
+        run(
+            str(python),
+            "-I",
+            str(ROOT / "tests/owner_wheel.py"),
+            extra_env={"PYTHONPATH": os.pathsep.join((str(root), str(ROOT)))},
+        )
 
 
 if __name__ == "__main__":

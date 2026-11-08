@@ -1,7 +1,9 @@
 //! Local file adapter; the authorized launcher supplies paths and expected digests.
 #![forbid(unsafe_code)]
 
-use kryvola_cpu_evaluator::{EvaluationBinding, KEY_MAX, PAIR_MAX, evaluate};
+use kryvola_cpu_evaluator::{
+    CAPABILITY, EvaluationBinding, EvaluationError, KEY_MAX, PAIR_MAX, evaluate,
+};
 use std::{
     ffi::OsStr,
     fs::{File, OpenOptions},
@@ -47,11 +49,35 @@ fn read(path: &Path, maximum: usize) -> Result<Vec<u8>> {
 fn run() -> Result<()> {
     let args: Vec<_> = std::env::args_os().collect();
     if args.len() == 2 && args[1] == "--help" {
-        println!("research-only: evaluate KEY INPUT OUTPUT KEY_DIGEST INPUT_DIGEST");
+        println!(
+            "research-only: --capabilities | evaluate KEY INPUT OUTPUT KEY_DIGEST INPUT_DIGEST [PROGRAM_DIGEST]"
+        );
         return Ok(());
     }
-    if args.len() != 7 || args[1] != "evaluate" {
+    if args.len() == 2 && args[1] == "--capabilities" {
+        let capability = CAPABILITY;
+        println!(
+            concat!(
+                r#"{{"backend":"CPU","profile":"{}","assurance":"{}","program_digest":"{}","#,
+                r#""parameter_set_digest":"{}","evaluation_key_max_bytes":{},"pair_max_bytes":{}}}"#
+            ),
+            capability.profile,
+            capability.assurance,
+            capability.program_digest,
+            capability.parameter_set_digest,
+            KEY_MAX,
+            PAIR_MAX,
+        );
+        return Ok(());
+    }
+    if !matches!(args.len(), 7 | 8) || args[1] != "evaluate" {
         return Err("EVALUATOR_ARGUMENT");
+    }
+    if args
+        .get(7)
+        .is_some_and(|program| program != CAPABILITY.program_digest)
+    {
+        return Err(EvaluationError::Program.code());
     }
     let binding = EvaluationBinding {
         evaluation_key_digest: digest(&args[5])?,

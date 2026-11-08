@@ -176,3 +176,29 @@ fn malformed_commitments_fail_before_file_access_without_echoing_arguments() {
         assert_eq!(output.stderr, b"EVALUATOR_ARGUMENT\n");
     }
 }
+
+#[test]
+fn worker_reports_capability_and_rejects_unknown_program_before_reading_paths() {
+    use kryvola_cpu_evaluator::CAPABILITY;
+
+    let output = Command::new(binary())
+        .arg("--capabilities")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let json = String::from_utf8(output.stdout).unwrap();
+    assert!(json.contains(r#""assurance":"CONFIDENTIALITY_ONLY""#));
+    assert!(json.contains(&format!(
+        r#""program_digest":"{}""#,
+        CAPABILITY.program_digest
+    )));
+
+    let output = Command::new(binary())
+        .args(["evaluate", "missing-key", "missing-input", "missing-output"])
+        .args(["0".repeat(64), "0".repeat(64), "0".repeat(64)])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(output.stderr, b"EVALUATOR_PROGRAM\n");
+}

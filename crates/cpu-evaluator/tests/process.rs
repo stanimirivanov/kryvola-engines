@@ -136,6 +136,41 @@ fn worker_process_round_trips_frozen_edges_with_public_files_only() {
         if index == 0 {
             assert_eq!(run().stderr, b"EVALUATOR_IO\n"); // Never overwrite an existing result.
             assert_eq!(fs::read(root.join("output.bin")).unwrap(), result);
+            let supervised = Command::new("python3")
+                .current_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
+                .args([
+                    "-c",
+                    r#"
+from pathlib import Path
+import sys
+from tools.cpu_runner import EvaluationRequest, run_evaluation
+worker, root = map(Path, sys.argv[1:3])
+request = EvaluationRequest(root / "evaluation.bin", root / "input.bin", *sys.argv[3:])
+(root / "supervised.bin").write_bytes(run_evaluation(worker, request, scratch_root=root))
+"#,
+                    binary(),
+                    root.to_str().unwrap(),
+                    &key_digest,
+                    &input_digest,
+                    kryvola_cpu_evaluator::CAPABILITY.program_digest,
+                ])
+                .output()
+                .unwrap();
+            assert!(supervised.status.success(), "{:?}", supervised.stderr);
+            let supervised_result = fs::read(root.join("supervised.bin")).unwrap();
+            assert_eq!(
+                owner
+                    .open_result(
+                        OpenBinding {
+                            evaluation_key_digest: blob_digest(owner.evaluation_key()),
+                            result_blob_digest: blob_digest(&supervised_result),
+                        },
+                        &supervised_result,
+                    )
+                    .unwrap(),
+                expected[index],
+            );
+            fs::remove_file(root.join("supervised.bin")).unwrap();
         }
         fs::remove_file(root.join("output.bin")).unwrap();
     }

@@ -18,6 +18,10 @@ target-version = "py314"
 line-length = 100
 extend-exclude = ["**/_spec/**", "contracts", "build", "target", "dist"]
 
+[tool.ruff.per-file-target-version]
+# The Engine launches this supervisor with the host system interpreter.
+"tools/cpu_runner.py" = "py312"
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 

@@ -80,3 +80,6 @@ native tests and boundary gate after retaining all previous checks. Historical
 experiment/evidence bytes and public contract artifacts are unchanged. TFHE
 artifact-distribution and commercial-service denials still apply. No signed
 release package, image, production profile, or deployment is enabled by this PR.
+
+The [CPU supervisor](cpu-runner.md) runs this adapter with bounded resources,
+a minimal environment and private scratch.

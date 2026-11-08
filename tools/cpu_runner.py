@@ -193,3 +193,20 @@ def run_evaluation(
         raise RunnerError(Failure.UNAVAILABLE) from None
     finally:
         _SLOT.release()
+
+
+def _main() -> None:
+    """Local worker supervisor entry point. Arguments carry paths and digests only."""
+    worker, key, source, output, key_digest, input_digest, program = sys.argv[1:]
+    result = run_evaluation(
+        Path(worker), EvaluationRequest(Path(key), Path(source), key_digest, input_digest, program)
+    )
+    with Path(output).open("xb") as stream:
+        stream.write(result)
+
+
+if __name__ == "__main__":
+    try:
+        _main()
+    except ValueError, OSError, RunnerError:
+        raise SystemExit(2) from None

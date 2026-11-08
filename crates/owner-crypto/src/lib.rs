@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 use std::io::Cursor;
+mod sealed;
 use tfhe::{
     ClientKey, CompressedServerKey, ConfigBuilder, FheUint8, FheUint8ConformanceParams,
     prelude::*,

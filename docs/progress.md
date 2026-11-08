@@ -260,3 +260,11 @@ service, isolated evaluator and scoped Fabric publication APIs. It accepts
 one trusted assignment per worker and reports an output candidate only after
 receipt persistence. The verification gate adds an owner-separated native
 RPC fixture and a worker image inventory check.
+
+
+## M1-PR19 owner key sealing prerequisite
+
+The owner-only Rust crate and Python wheel now seal and restore the actual
+FHE-Q1 key under an independent wrapping key and custody context. Tests recover
+the original evaluation identity and open pre-existing ciphertext in a fresh
+owner process. Fabric owns the storage and recovery policy.

@@ -3,8 +3,8 @@
 M1-PR14 packages `crates/owner-crypto` as `kryvola-owner`, importable as
 `kryvola_owner`. It is an owner-process dependency for the later ML SDK; it is
 never installed in an evaluator or imported from a sibling checkout. This slice
-adds no SDK transport, custody persistence, release signature validation, worker
-API, or publication workflow.
+adds no SDK transport, release signature validation, worker API, or publication
+workflow. M1-PR19 adds the owner-local sealed envelope used by Fabric custody.
 
 The extension uses PyO3 0.27.1 (MIT OR Apache-2.0) and maturin 1.10.2 (MIT OR
 Apache-2.0), rather than maintaining a hand-written Python C ABI. PyO3 is confined
@@ -17,12 +17,18 @@ are not qualified. The local gate targets the pinned CPython 3.14.7 toolchain.
 ## API and authorization boundary
 
 - `OwnerKey()` generates a process-local opaque client key. It has no private-key
-  import/export, Python dictionary, pickle/copy support, or secret-bearing repr.
+  plaintext import/export, Python dictionary, pickle/copy support, or secret-bearing repr.
 - `key.evaluation_key()` returns compressed public evaluation bytes.
 - `key.encrypt_pair(values)` accepts exactly two bytes, each a uint8 value.
 - `key.open_result(ciphertext, evaluation_key_digest, result_blob_digest)` accepts
   bytes and two 32-byte commitments, and returns exactly two plaintext bytes.
   The native library bounds and validates the result before decryption.
+- Starting with wheel version `0.1.0.dev2`, `key.seal(wrapping_key, context)`
+  returns a bounded encrypted envelope. `OwnerKey.restore(wrapping_key, context,
+  sealed)` returns an opaque key with the original public evaluation bytes.
+  Both inputs are exactly 32 bytes. The wrapping key must be independently
+  generated high-entropy secret material from owner custody. The context is
+  an independently derived commitment to the intended custody identity and slot.
 - `blob_digest(bytes)` returns the Spec BLAKE3 full-blob commitment for zero to
   64 MiB inclusive. Starting with wheel version `0.1.0.dev1`, larger inputs raise
   `ValueError("OWNER_SIZE")` before hashing. Empty input remains valid for the
@@ -37,9 +43,21 @@ Do not expose these owner-local primitives as a remote decrypt endpoint.
 Native failures become `ValueError` with fixed codes `OWNER_SIZE`,
 `OWNER_BINDING`, `OWNER_FRAMING`, or `OWNER_NATIVE`; binding shape and digest-length
 errors use `OWNER_SHAPE` and `OWNER_DIGEST`. Wrong Python types raise `TypeError`.
-No native error payload or key data is included. Python plaintext bytes and
-native allocations are not guaranteed to be erased on release; this package adds
-no persistent custody or process hardening guarantees.
+No native error payload or key data is included. Incorrect wrapping-key or
+context lengths use `OWNER_WRAPPING_KEY` or `OWNER_CUSTODY_CONTEXT`.
+Envelope authentication failures use `OWNER_BINDING`.
+
+The v1 envelope uses ring AES-256-GCM with a fresh random 96-bit nonce. The
+version prefix and custody context are authenticated. The encrypted payload
+contains the bounded TFHE 1.8.1 native client key and original compressed
+evaluation bytes. The envelope is at most 65 MiB plus 40 bytes. Restore
+authenticates before parsing either native object.
+Use a separate wrapping key for this format and rotate it before 2^24 seals.
+Treat the format as opaque and retain the exact version needed for recovery.
+
+The Rust staging buffers are zeroized on drop. Python wrapping-key bytes,
+TFHE internal allocations and the AEAD key schedule have no erasure guarantee.
+Fabric owns keystore access, file and backup policy, and process hardening.
 
 ## Local wheel gate
 

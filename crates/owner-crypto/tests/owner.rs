@@ -247,3 +247,35 @@ fn wrong_parameters_reach_native_conformance_with_valid_binding() {
         Err(OwnerError::Native)
     );
 }
+
+#[test]
+fn sealed_key_restores_original_ciphertext_and_rejects_substitution() {
+    let wrapping_key = [3; 32];
+    let context = [4; 32];
+    let owner = OwnerKey::generate().unwrap();
+    let evaluation = owner.evaluation_key().to_vec();
+    let ciphertext = owner.encrypt_pair([12, 34]).unwrap();
+    let sealed = owner.seal(&wrapping_key, &context).unwrap();
+    assert_ne!(sealed, owner.seal(&wrapping_key, &context).unwrap());
+    drop(owner);
+
+    let restored = OwnerKey::restore(&wrapping_key, &context, &sealed).unwrap();
+    assert_eq!(restored.evaluation_key(), evaluation);
+    let binding = OpenBinding {
+        evaluation_key_digest: blob_digest(&evaluation),
+        result_blob_digest: blob_digest(&ciphertext),
+    };
+    assert_eq!(
+        restored.open_result(binding, &ciphertext).unwrap(),
+        [12, 34]
+    );
+    assert!(OwnerKey::restore(&[5; 32], &context, &sealed).is_err());
+    assert!(OwnerKey::restore(&wrapping_key, &[6; 32], &sealed).is_err());
+    assert!(OwnerKey::restore(&wrapping_key, &context, &sealed[..sealed.len() - 1]).is_err());
+    let mut tampered = sealed;
+    for index in [0, 8, tampered.len() / 2, tampered.len() - 1] {
+        tampered[index] ^= 1;
+        assert!(OwnerKey::restore(&wrapping_key, &context, &tampered).is_err());
+        tampered[index] ^= 1;
+    }
+}

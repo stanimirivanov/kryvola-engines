@@ -13,7 +13,20 @@ fn error(error: OwnerError) -> PyErr {
     })
 }
 
-/// Opaque process-local key; never persisted, exported, or sent to compute.
+fn custody_inputs<'a>(
+    wrapping_key: &'a [u8],
+    context: &'a [u8],
+) -> PyResult<(&'a [u8; 32], &'a [u8; 32])> {
+    let wrapping_key = wrapping_key
+        .try_into()
+        .map_err(|_| PyValueError::new_err("OWNER_WRAPPING_KEY"))?;
+    let context = context
+        .try_into()
+        .map_err(|_| PyValueError::new_err("OWNER_CUSTODY_CONTEXT"))?;
+    Ok((wrapping_key, context))
+}
+
+/// Opaque owner-local key. Persistence is available only as a sealed envelope.
 #[pyclass(name = "OwnerKey", module = "kryvola_owner", frozen)]
 struct Key {
     owner: OwnerKey,
@@ -34,6 +47,32 @@ impl Key {
 
     fn evaluation_key<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, self.owner.evaluation_key())
+    }
+
+    fn seal<'py>(
+        &self,
+        py: Python<'py>,
+        wrapping_key: &[u8],
+        context: &[u8],
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let (wrapping_key, context) = custody_inputs(wrapping_key, context)?;
+        let sealed = py
+            .detach(|| self.owner.seal(wrapping_key, context))
+            .map_err(error)?;
+        Ok(PyBytes::new(py, &sealed))
+    }
+
+    #[staticmethod]
+    fn restore(
+        py: Python<'_>,
+        wrapping_key: &[u8],
+        context: &[u8],
+        sealed: &[u8],
+    ) -> PyResult<Self> {
+        let (wrapping_key, context) = custody_inputs(wrapping_key, context)?;
+        py.detach(|| OwnerKey::restore(wrapping_key, context, sealed))
+            .map(|owner| Self { owner })
+            .map_err(error)
     }
 
     fn encrypt_pair<'py>(&self, py: Python<'py>, values: &[u8]) -> PyResult<Bound<'py, PyBytes>> {

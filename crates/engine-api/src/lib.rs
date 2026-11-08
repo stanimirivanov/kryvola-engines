@@ -1,4 +1,10 @@
 //! Foundation control boundaries. This crate implements no encryption or inference.
+extern crate self as tonic_prost;
+pub mod codec;
+pub use codec::ProstCodec;
+pub mod wire {
+    include!("../../../contracts/native/rust/kryvola.spec.v1.rs");
+}
 #[path = "../../../contracts/spec/rust/artifact_ref.rs"]
 pub mod contract;
 #[path = "../../../contracts/spec/rust/limits.rs"]

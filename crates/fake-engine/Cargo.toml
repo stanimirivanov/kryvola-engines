@@ -7,11 +7,9 @@ license.workspace = true
 publish = false
 
 [dependencies]
+kryvola-engine-api = { path = "../engine-api" }
 bytes = "=1.12.1"
 prost = "=0.14.4"
-prost-reflect = { version = "=0.16.5", features = ["serde"] }
-jsonschema = { version = "=0.60.1", default-features = false }
-serde_json = "=1.0.154"
 tonic = "=0.14.6"
 tokio = { version = "=1.54.1", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
 tokio-stream = { version = "=0.1.19", features = ["net"] }

@@ -4,6 +4,8 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,6 +58,35 @@ def main() -> None:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     print(
         f"Worker boundary passed; binary_sha256={digest}; research only, not release qualification"
+    )
+
+    with tempfile.TemporaryDirectory(prefix="engine-owner-fixture-") as tmp:
+        subprocess.run(
+            [
+                "cargo",
+                "run",
+                "--locked",
+                "--release",
+                "--manifest-path",
+                MANIFEST,
+                "--example",
+                "engine_rpc_fixture",
+                "--",
+                str(Path(tmp) / "public"),
+                str(binary),
+            ],
+            cwd=ROOT,
+            check=True,
+        )
+    subprocess.run(["cargo", "build", "--locked", "-p", "kryvola-cpu-engine"], cwd=ROOT, check=True)
+    workspace = json.loads(
+        output("cargo", "metadata", "--locked", "--no-deps", "--format-version", "1")
+    )
+    engine = Path(workspace["target_directory"]) / "debug/kryvola-cpu-engine"
+    subprocess.run(
+        [sys.executable, "tools/cpu_engine_package.py", str(engine), str(binary)],
+        cwd=ROOT,
+        check=True,
     )
 
 

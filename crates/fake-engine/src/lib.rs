@@ -1,11 +1,6 @@
 //! Test-only state machine. No inference, crypto, artifact access or production registration.
-extern crate self as tonic_prost;
-pub mod codec;
 pub mod conformance;
-pub use codec::ProstCodec;
-pub mod wire {
-    include!("../../../contracts/native/rust/kryvola.spec.v1.rs");
-}
+pub use kryvola_engine_api::{ProstCodec, codec, wire};
 use std::{
     collections::{HashMap, hash_map::Entry},
     sync::{

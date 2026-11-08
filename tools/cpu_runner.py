@@ -177,7 +177,7 @@ def run_evaluation(
             try:
                 _stage(request.key, scratch / "evaluation.bin", _KEY_MAX)
                 _stage(request.input, scratch / "input.bin", _PAIR_MAX)
-            except OSError, ValueError:
+            except (OSError, ValueError):
                 raise RunnerError(Failure.INPUT) from None
 
             _run(worker.resolve(), scratch, request, limits)
@@ -186,10 +186,27 @@ def run_evaluation(
                     output = stream.read(_PAIR_MAX + 1)
                 if not 0 < len(output) <= _PAIR_MAX:
                     raise ValueError("RUNNER_FILE")
-            except OSError, ValueError:
+            except (OSError, ValueError):
                 raise RunnerError(Failure.OUTPUT) from None
             return output
     except OSError:
         raise RunnerError(Failure.UNAVAILABLE) from None
     finally:
         _SLOT.release()
+
+
+def _main() -> None:
+    """Local worker supervisor entry point. Arguments carry paths and digests only."""
+    worker, key, source, output, key_digest, input_digest, program = sys.argv[1:]
+    result = run_evaluation(
+        Path(worker), EvaluationRequest(Path(key), Path(source), key_digest, input_digest, program)
+    )
+    with Path(output).open("xb") as stream:
+        stream.write(result)
+
+
+if __name__ == "__main__":
+    try:
+        _main()
+    except (ValueError, OSError, RunnerError):
+        raise SystemExit(2) from None

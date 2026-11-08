@@ -140,3 +140,22 @@ impl<T: Message + Default> Decoder for ProstDecoder<T> {
             .map_err(|_| Status::invalid_argument("INVALID_DESCRIPTOR"))
     }
 }
+
+/// Project a typed wire message with the pinned descriptor's field names.
+pub fn to_json<T: Message>(message: &T) -> Result<Json, Status> {
+    let name = std::any::type_name::<T>()
+        .rsplit("::")
+        .next()
+        .unwrap_or_default();
+    let descriptor = context()
+        .pool
+        .get_message_by_name(&format!("kryvola.spec.v1.{name}"))
+        .ok_or_else(|| Status::internal("TYPE"))?;
+    DynamicMessage::decode(descriptor, message.encode_to_vec().as_slice())
+        .map_err(|_| Status::internal("TYPE"))?
+        .serialize_with_options(
+            serde_json::value::Serializer,
+            &SerializeOptions::new().use_proto_field_name(true),
+        )
+        .map_err(|_| Status::internal("TYPE"))
+}

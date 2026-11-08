@@ -252,3 +252,11 @@ standalone release Clippy, and the canonical fast gate. Real public-material-onl
 worker subprocesses match the four frozen edge fixtures. Cold CI builds and the
 broader unchanged native/SP1 suites are not claimed as locally rerun; the new
 evaluator gates execute in the existing parallel TFHE job.
+
+## M1-PR18 artifact-backed CPU Engine
+
+The [artifact CPU Engine](artifact-cpu-engine.md) connects the bounded gRPC
+service, isolated evaluator and scoped Fabric publication APIs. It accepts
+one trusted assignment per worker and reports an output candidate only after
+receipt persistence. The verification gate adds an owner-separated native
+RPC fixture and a worker image inventory check.

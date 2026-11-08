@@ -1,3 +1,4 @@
+import ast
 import os
 import sys
 import tempfile
@@ -33,6 +34,10 @@ class RunnerTests(unittest.TestCase):
             return run_evaluation(self.worker, self.request, scratch_root=self.scratch, **kwargs)
         finally:
             self.assertEqual(list(self.scratch.iterdir()), [])
+
+    def test_supervisor_parses_on_ubuntu_24_04_system_python(self):
+        supervisor = Path(__file__).resolve().parents[1] / "tools" / "cpu_runner.py"
+        ast.parse(supervisor.read_text(encoding="utf-8"), feature_version=(3, 12))
 
     def test_minimal_environment_no_core_and_bounded_output(self):
         with patch.dict(os.environ, {"PRIVATE_MARKER": "test-only"}):

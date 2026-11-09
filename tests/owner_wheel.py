@@ -5,6 +5,7 @@ import importlib
 import importlib.machinery
 import importlib.metadata
 import pickle
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -32,7 +33,7 @@ class InstalledOwnerTests(unittest.TestCase):
         self.assertTrue(sys.flags.isolated)
         self.assertNotEqual(sys.prefix, sys.base_prefix)
         distribution = importlib.metadata.distribution("kryvola-owner")
-        self.assertEqual(distribution.version, "0.1.0.dev1")
+        self.assertEqual(distribution.version, "0.1.0.dev2")
         files = distribution.files
         self.assertIsNotNone(files)
         installed_files = {
@@ -99,11 +100,48 @@ class InstalledOwnerTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.key.open_result("secret-marker", bytes(32), bytes(32))
 
-    def test_handle_has_no_serialization_or_secret_attributes(self):
+    def test_sealed_key_restores_in_a_fresh_owner_process(self):
+        wrapping_key = bytes([3]) * 32
+        context = bytes([4]) * 32
+        sealed = self.key.seal(wrapping_key, context)
+        with self.assertRaisesRegex(ValueError, "^OWNER_WRAPPING_KEY$"):
+            self.key.seal(bytes(31), context)
+        with self.assertRaisesRegex(ValueError, "^OWNER_CUSTODY_CONTEXT$"):
+            owner.OwnerKey.restore(wrapping_key, bytes(33), sealed)
+        for key, slot, blob in (
+            (bytes(32), context, sealed),
+            (wrapping_key, bytes(32), sealed),
+            (wrapping_key, context, sealed[:-1] + bytes([sealed[-1] ^ 1])),
+        ):
+            with self.assertRaisesRegex(ValueError, "^OWNER_BINDING$"):
+                owner.OwnerKey.restore(key, slot, blob)
+        check = """
+import sys
+from kryvola_owner import OwnerKey, blob_digest
+stream = sys.stdin.buffer
+pair = stream.read(int.from_bytes(stream.read(4), 'little'))
+evaluation = stream.read(32)
+restored = OwnerKey.restore(bytes([3]) * 32, bytes([4]) * 32, stream.read())
+assert blob_digest(restored.evaluation_key()) == evaluation
+assert restored.open_result(pair, evaluation, blob_digest(pair)) == bytes([255, 17])
+"""
+        subprocess.run(
+            [sys.executable, "-I", "-c", check],
+            input=len(self.pair).to_bytes(4, "little")
+            + self.pair
+            + self.evaluation_digest
+            + sealed,
+            check=True,
+            timeout=30,
+        )
+
+    def test_handle_has_no_plaintext_serialization_or_secret_attributes(self):
         self.assertEqual(repr(self.key), "<kryvola_owner.OwnerKey opaque>")
         self.assertEqual(str(self.key), repr(self.key))
         public = {name for name in dir(self.key) if not name.startswith("_")}
-        self.assertEqual(public, {"evaluation_key", "encrypt_pair", "open_result"})
+        self.assertEqual(
+            public, {"evaluation_key", "encrypt_pair", "open_result", "seal", "restore"}
+        )
         self.assertFalse(hasattr(self.key, "__dict__"))
         with self.assertRaises(AttributeError):
             self.key.client_key = b"secret-marker"

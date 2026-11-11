@@ -20,10 +20,11 @@ installed image bytes to the CPU archive. It builds the owner-only CPython 3.14
 wheel and runs the existing isolated installed-wheel API and key-custody tests.
 Source commit time fixes wheel timestamps. It also normalizes image-context
 file modes/times and the Docker SOURCE_DATE_EPOCH build argument, following
-[Docker reproducible-build guidance](https://docs.docker.com/build/ci/github-actions/reproducible-builds/). The inventory binds the exact source,
+[Docker reproducible-build guidance](https://docs.docker.com/build/ci/github-actions/reproducible-builds/).
 Two fresh, cache-disabled image builds use BuildKit timestamp rewriting and
 must produce the same image configuration digest before a candidate is recorded.
-The inventory binds the Spec pin, Cargo locks, runtime image recipe, separate owner wheel, SBOM and
+The inventory binds the exact source, Spec pin, Cargo locks, runtime image recipe,
+separate owner wheel, SBOM and
 in-toto/SLSA-format provenance. CPU archives cannot contain owner material.
 
 The worker image uses the existing digest-pinned Python 3.14.7 base, contains only

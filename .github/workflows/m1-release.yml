@@ -10,6 +10,9 @@ on:
       cpu_sha256:
         description: Independently approved cpu-runtime.tar SHA-256
         type: string
+      image_sha256:
+        description: Independently approved CPU image configuration SHA-256
+        type: string
       owner_sha256:
         description: Independently approved owner wheel SHA-256
         type: string
@@ -64,6 +67,7 @@ jobs:
     env:
       CPU_SHA256: ${{ inputs.cpu_sha256 }}
       OWNER_SHA256: ${{ inputs.owner_sha256 }}
+      IMAGE_SHA256: ${{ inputs.image_sha256 }}
       EVIDENCE_URL: ${{ inputs.evidence_url }}
       EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
       POLICY_SHA256: ${{ inputs.policy_sha256 }}
@@ -81,7 +85,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          test -n "$CPU_SHA256" && test -n "$OWNER_SHA256" && test -n "$EVIDENCE_URL" && test -n "$EVIDENCE_SHA256" && test -n "$POLICY_SHA256" && test -n "$OWNER_BUILDER"
+          test -n "$CPU_SHA256" && test -n "$OWNER_SHA256" && test -n "$IMAGE_SHA256" && test -n "$EVIDENCE_URL" && test -n "$EVIDENCE_SHA256" && test -n "$POLICY_SHA256" && test -n "$OWNER_BUILDER"
           tag="m1-${GITHUB_SHA}"
           existing="$(git ls-remote --tags origin "refs/tags/$tag")"
           if [ -n "$existing" ]; then echo 'M1 tag exists; refusing replacement'; exit 1; fi
@@ -96,7 +100,7 @@ jobs:
         run: |
           printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           trap 'docker logout ghcr.io' EXIT
-          uv run --locked python tools/m1_release.py publish-image --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --packet build/m1-evidence --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
+          uv run --locked python tools/m1_release.py publish-image --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --image-sha256 "$IMAGE_SHA256" --packet build/m1-evidence --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
       - name: Sign the final inventory and verify source, image and current permission
         run: |
           build/release-tools/cosign sign-blob --yes --bundle build/m1/manifest.sigstore.json build/m1/manifest.json

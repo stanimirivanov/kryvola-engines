@@ -41,7 +41,7 @@ EVIDENCE = (
     {"policy.json"}
     | {
         f"{role}/{name}"
-        for role in ("cpu", "owner")
+        for role in ("cpu", "image", "owner")
         for name in ("decision.json", "legal.sig", "parameters.sig")
     }
     | {"owner/provenance.json", "owner/builder.sig"}
@@ -94,7 +94,7 @@ def wheel(folder):
 
 def seal(folder, source, state):
     require(review_successor.is_hex(source, 40) and state in {"CANDIDATE", "APPROVED"})
-    names = set(INPUTS) | {"cpu-runtime.tar", wheel(folder).name, "sbom.json"}
+    names = set(INPUTS) | {"cpu-runtime.tar", wheel(folder).name, "sbom.json", "image-subject.json"}
     if state == "APPROVED":
         names |= {"permission-evidence.tar", "image.json"}
     release.write(
@@ -137,7 +137,13 @@ def validate(folder, source, *, approved=False):
     require(review_successor.is_hex(source, 40))
     manifest = release.read(folder / "manifest.json")
     state = "APPROVED" if approved else "CANDIDATE"
-    names = set(INPUTS) | {"cpu-runtime.tar", wheel(folder).name, "sbom.json", "provenance.json"}
+    names = set(INPUTS) | {
+        "cpu-runtime.tar",
+        wheel(folder).name,
+        "sbom.json",
+        "provenance.json",
+        "image-subject.json",
+    }
     if approved:
         names |= {"permission-evidence.tar", "image.json"}
     require(
@@ -169,6 +175,13 @@ def validate(folder, source, *, approved=False):
     require(all(sha(folder / name) == digest for name, digest in manifest["subjects"].items()))
     require(manifest["spec"] == release.read(ROOT / "spec.lock.json"))
     require(all(sha(folder / name) == sha(ROOT / original) for name, original in INPUTS.items()))
+    subject = release.read(folder / "image-subject.json")
+    require(
+        set(subject) == {"source", "cpu_sha256", "config_sha256"}
+        and subject["source"] == source
+        and subject["cpu_sha256"] == sha(folder / "cpu-runtime.tar")
+        and review_successor.is_hex(subject["config_sha256"], 64)
+    )
     unpack(folder / "cpu-runtime.tar", CPU_FILES, 128 << 20)
     provenance = release.read(folder / "provenance.json")
     require(
@@ -211,6 +224,14 @@ def permissions(folder, source, packet, policy_sha256, builder):
         "artifact_distribution",
         sha(folder / "cpu-runtime.tar"),
     )
+    image = review_successor.verify(
+        packet / "image",
+        policy,
+        policy_sha256,
+        predecessor,
+        "artifact_distribution",
+        release.read(folder / "image-subject.json")["config_sha256"],
+    )
     owner = owner_wheel.verify_wheel(
         wheel(folder),
         packet / "owner",
@@ -220,7 +241,7 @@ def permissions(folder, source, packet, policy_sha256, builder):
         sha(ROOT / INPUTS["owner.lock"]),
         builder,
     )
-    return {"cpu": cpu, "owner": owner}
+    return {"cpu": cpu, "image": image, "owner": owner}
 
 
 def fetch_evidence(url, expected, destination):
@@ -237,6 +258,14 @@ def fetch_evidence(url, expected, destination):
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
+
+
+def image_identity(image):
+    value = release.run(
+        "docker", "image", "inspect", image, "--format", "{{.Id}}", capture_output=True, text=True
+    ).stdout.strip()
+    require(re.fullmatch(r"sha256:[0-9a-f]{64}", value))
+    return value.removeprefix("sha256:")
 
 
 def image_check(image, contents):
@@ -325,7 +354,17 @@ def prepare():
         ROOT / "tools/cpu_engine_package.py",
         ROOT / "target/release/kryvola-cpu-engine",
         ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator",
+        env=env,
     )
+    identity = image_identity("kryvola-cpu-engine:local")
+    release.run(
+        sys.executable,
+        ROOT / "tools/cpu_engine_package.py",
+        ROOT / "target/release/kryvola-cpu-engine",
+        ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator",
+        env=env,
+    )
+    require(image_identity("kryvola-cpu-engine:local") == identity, "IMAGE_NON_REPRODUCIBLE")
     paths = {
         "kryvola-cpu-engine": ROOT / "target/release/kryvola-cpu-engine",
         "kryvola-cpu-evaluator": ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator",
@@ -335,6 +374,14 @@ def prepare():
     contents = {name: review_successor.read(path, 128 << 20) for name, path in paths.items()}
     archive(OUTPUT / "cpu-runtime.tar", contents)
     image_check("kryvola-cpu-engine:local", contents)
+    release.write(
+        OUTPUT / "image-subject.json",
+        {
+            "source": source,
+            "cpu_sha256": sha(OUTPUT / "cpu-runtime.tar"),
+            "config_sha256": identity,
+        },
+    )
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         release.run(
@@ -376,10 +423,12 @@ def prepare():
     )
 
 
-def publish(folder, source, cpu_sha256, owner_sha256, packet, policy_sha256, builder):
+def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, policy_sha256, builder):
     manifest = validate(folder, source)
     require(
-        sha(folder / "cpu-runtime.tar") == cpu_sha256 and sha(wheel(folder)) == owner_sha256,
+        sha(folder / "cpu-runtime.tar") == cpu_sha256
+        and sha(wheel(folder)) == owner_sha256
+        and release.read(folder / "image-subject.json")["config_sha256"] == image_sha256,
         "CANDIDATE_PIN",
     )
     with tempfile.TemporaryDirectory() as temporary:
@@ -391,7 +440,9 @@ def publish(folder, source, cpu_sha256, owner_sha256, packet, policy_sha256, bui
             (folder / name).write_bytes(review_successor.read(destination / name, 128 << 20))
         validate(folder, source)
         require(
-            sha(folder / "cpu-runtime.tar") == cpu_sha256 and sha(wheel(folder)) == owner_sha256,
+            sha(folder / "cpu-runtime.tar") == cpu_sha256
+            and sha(wheel(folder)) == owner_sha256
+            and release.read(folder / "image-subject.json")["config_sha256"] == image_sha256,
             "CANDIDATE_PIN",
         )
         evidence = {name: review_successor.read(packet / name, 16384) for name in EVIDENCE}
@@ -414,8 +465,17 @@ def publish(folder, source, cpu_sha256, owner_sha256, packet, policy_sha256, bui
             ROOT / "tools/cpu_engine_package.py",
             root / "kryvola-cpu-engine",
             root / "kryvola-cpu-evaluator",
+            env=os.environ
+            | {
+                "SOURCE_DATE_EPOCH": release.run(
+                    "git", "show", "-s", "--format=%ct", source, capture_output=True, text=True
+                ).stdout.strip()
+            },
         )
         image_check("kryvola-cpu-engine:local", contents)
+        require(
+            image_identity("kryvola-cpu-engine:local") == image_sha256, "IMAGE_REBUILD_MISMATCH"
+        )
         permissions(folder, source, root, policy_sha256, builder)
         tag = IMAGE + ":m1-" + source
         probe = release.run("docker", "manifest", "inspect", tag, check=False, capture_output=True)
@@ -443,6 +503,7 @@ def publish(folder, source, cpu_sha256, owner_sha256, packet, policy_sha256, bui
         (image,) = [ref for ref in refs if ref.startswith(IMAGE + "@sha256:")]
         release.run("docker", "pull", image)
         image_check(image, contents)
+        require(image_identity(image) == image_sha256, "IMAGE_PULL_MISMATCH")
         archive(folder / "permission-evidence.tar", evidence)
         release.write(
             folder / "image.json",
@@ -488,6 +549,10 @@ def verify(folder, source, policy_sha256, builder):
     image = release.read(folder / "image.json")["image"]
     release.run("docker", "pull", image)
     image_check(image, unpack(folder / "cpu-runtime.tar", CPU_FILES, 128 << 20))
+    require(
+        image_identity(image) == release.read(folder / "image-subject.json")["config_sha256"],
+        "IMAGE_PULL_MISMATCH",
+    )
 
 
 def main():
@@ -499,6 +564,7 @@ def main():
     parser.add_argument("--source")
     parser.add_argument("--cpu-sha256")
     parser.add_argument("--owner-sha256")
+    parser.add_argument("--image-sha256")
     parser.add_argument("--packet", type=Path)
     parser.add_argument("--policy-sha256")
     parser.add_argument("--builder")
@@ -519,6 +585,7 @@ def main():
                     args.source,
                     args.cpu_sha256,
                     args.owner_sha256,
+                    args.image_sha256,
                     args.packet,
                     args.policy_sha256,
                     args.builder,
@@ -530,6 +597,7 @@ def main():
             args.source,
             args.cpu_sha256,
             args.owner_sha256,
+            args.image_sha256,
             args.packet,
             args.policy_sha256,
             args.builder,

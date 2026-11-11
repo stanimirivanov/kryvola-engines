@@ -18,6 +18,14 @@ def candidate(folder):
     for name, source in m1.INPUTS.items():
         (folder / name).write_bytes((m1.ROOT / source).read_bytes())
     (folder / "sbom.json").write_bytes(b"{}")
+    release.write(
+        folder / "image-subject.json",
+        {
+            "source": SOURCE,
+            "cpu_sha256": m1.sha(folder / "cpu-runtime.tar"),
+            "config_sha256": "0" * 64,
+        },
+    )
     return m1.seal(folder, SOURCE, "CANDIDATE")
 
 
@@ -77,7 +85,7 @@ class PermissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             folder, signing, packet = (root / name for name in ("candidate", "signing", "packet"))
-            for path in (folder, signing, packet / "owner", packet / "cpu"):
+            for path in (folder, signing, packet / "owner", packet / "cpu", packet / "image"):
                 path.mkdir(parents=True)
             candidate(folder)
             evidence = Evidence(signing, m1.wheel(folder))
@@ -99,17 +107,25 @@ class PermissionTests(unittest.TestCase):
             )
             for name in ("decision.json", "legal.sig", "parameters.sig"):
                 (packet / "cpu" / name).write_bytes((signing / name).read_bytes())
+            evidence.sign(
+                "decision.json",
+                {**evidence.decision, "artifact_sha256": "0" * 64},
+                *review_successor.ROLES,
+            )
+            for name in ("decision.json", "legal.sig", "parameters.sig"):
+                (packet / "image" / name).write_bytes((signing / name).read_bytes())
             policy = json.dumps(evidence.policy).encode()
             (packet / "policy.json").write_bytes(policy)
             pin = review_successor.sha256(policy)
             builder = evidence.keys["builder"]
             result = m1.permissions(folder, SOURCE, packet, pin, builder)
             self.assertTrue(result["cpu"]["authenticated"])
+            self.assertTrue(result["image"]["authenticated"])
             self.assertEqual(result["owner"]["wheel_sha256"], m1.sha(m1.wheel(folder)))
             for bad_pin, bad_builder in (("0" * 64, builder), (pin, evidence.keys["legal"])):
                 with self.assertRaises(ValueError):
                     m1.permissions(folder, SOURCE, packet, bad_pin, bad_builder)
-            for name in ("cpu/legal.sig", "owner/builder.sig"):
+            for name in ("cpu/legal.sig", "image/legal.sig", "owner/builder.sig"):
                 original = (packet / name).read_bytes()
                 (packet / name).write_bytes(bytes(64))
                 with self.assertRaises(ValueError):
@@ -133,6 +149,7 @@ class PermissionTests(unittest.TestCase):
                         SOURCE,
                         m1.sha(folder / "cpu-runtime.tar"),
                         m1.sha(m1.wheel(folder)),
+                        "0" * 64,
                         folder,
                         "0" * 64,
                         "0" * 88,
@@ -162,9 +179,21 @@ class StagingTests(unittest.TestCase):
                 }
             )
             m1.archive(folder / "cpu-runtime.tar", contents)
+            release.write(
+                folder / "image-subject.json",
+                {
+                    "source": SOURCE,
+                    "cpu_sha256": m1.sha(folder / "cpu-runtime.tar"),
+                    "config_sha256": "0" * 64,
+                },
+            )
             m1.seal(folder, SOURCE, "CANDIDATE")
 
             def boundary(*args, **kwargs):
+                if args[0] == "git":
+                    from types import SimpleNamespace
+
+                    return SimpleNamespace(stdout="0")
                 self.assertTrue(os.access(args[-1], os.X_OK))
                 self.assertTrue(os.access(args[-2], os.X_OK))
                 raise RuntimeError("image build reached")
@@ -184,7 +213,26 @@ class StagingTests(unittest.TestCase):
                         SOURCE,
                         m1.sha(folder / "cpu-runtime.tar"),
                         m1.sha(m1.wheel(folder)),
+                        "0" * 64,
                         packet,
                         "0" * 64,
                         "0" * 88,
                     )
+
+
+class ImageReproductionTests(unittest.TestCase):
+    def test_image_context_uses_fixed_modes_and_timestamps(self):
+        from tools import cpu_engine_package
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in cpu_engine_package.FILES:
+                (root / name).write_bytes(b"fixture")
+                (root / name).chmod(0o777)
+            cpu_engine_package.normalize(root, 1234)
+            for name in cpu_engine_package.FILES:
+                self.assertEqual((root / name).stat().st_mtime_ns, 1234 * 10**9)
+                self.assertEqual(
+                    (root / name).stat().st_mode & 0o777,
+                    0o755 if name.startswith("kryvola-cpu-") else 0o644,
+                )

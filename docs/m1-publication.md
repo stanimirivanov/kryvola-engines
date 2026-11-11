@@ -18,8 +18,12 @@ The tool builds the real CPU Engine API binary and bounded TFHE CPU evaluator,
 uses the existing dependency/symbol and non-root image checks, and compares
 installed image bytes to the CPU archive. It builds the owner-only CPython 3.14
 wheel and runs the existing isolated installed-wheel API and key-custody tests.
-Source commit time fixes wheel timestamps. The inventory binds the exact source,
-Spec pin, Cargo locks, runtime image recipe, separate owner wheel, SBOM and
+Source commit time fixes wheel timestamps. It also normalizes image-context
+file modes/times and the Docker SOURCE_DATE_EPOCH build argument, following
+[Docker reproducible-build guidance](https://docs.docker.com/build/ci/github-actions/reproducible-builds/). The inventory binds the exact source,
+Two fresh, cache-disabled image builds use BuildKit timestamp rewriting and
+must produce the same image configuration digest before a candidate is recorded.
+The inventory binds the Spec pin, Cargo locks, runtime image recipe, separate owner wheel, SBOM and
 in-toto/SLSA-format provenance. CPU archives cannot contain owner material.
 
 The worker image uses the existing digest-pinned Python 3.14.7 base, contains only
@@ -42,13 +46,18 @@ signatures. Prepare a tar with exactly these public files:
 - `policy.json`: current operator policy, independently hash-pinned.
 - `cpu/decision.json`, `cpu/legal.sig`, `cpu/parameters.sig`: current
   `artifact_distribution` approval over the exact `cpu-runtime.tar` hash.
+- `image/decision.json`, `image/legal.sig`, `image/parameters.sig`: a distinct
+  approval over the exact CPU image configuration SHA-256 recorded in
+  `image-subject.json`. The OCI configuration commits the runtime settings and
+  uncompressed root-filesystem layer hashes; this is distinct from approval of
+  the CPU tar and from the registry transport manifest digest.
 - `owner/decision.json`, `owner/legal.sig`, `owner/parameters.sig`: separate
   approval over the exact owner wheel hash.
 - `owner/provenance.json`, `owner/builder.sig`: existing owner-wheel provenance
   format, binding the exact wheel, source and owner Cargo lock, signed by the
   independently provisioned builder key.
 
-Both decisions bind the validated historical review predecessor and its TFHE
+All three decisions bind the validated historical review predecessor and its TFHE
 parameters. The same current policy supplies distinct legal/parameter authorities
 and revocations. Supply the policy hash and builder public key independently;
 never derive trust from the bundle being verified. No repository fixture policy
@@ -57,21 +66,21 @@ misconfiguration, not a permission supplied by this tool.
 
 The external review workflow must inspect/reproduce the local research candidate
 before signing. The publishing run rebuilds it and refuses any mismatch with the
-independently selected CPU and wheel hashes. Reproducibility across machines is
+independently selected archive, wheel and image configuration hashes. Reproducibility across machines is
 not assumed: differing bytes require new review; they cannot inherit approval.
 Review metadata/SBOM timestamps can differ without changing approved native bytes.
 
 ## Publication and consumer verification
 
 After merge, the owner may explicitly dispatch `publish` on main with the exact
-CPU and owner hashes, HTTPS review-bundle URL/hash, current policy hash and
+CPU archive, image configuration and owner wheel hashes, HTTPS review-bundle URL/hash, current policy hash and
 owner-builder DER Ed25519 public key hex. The URL carries no credentials; use
 public approval material only. The bounded fetch rejects extra files and unsafe
 archive members. Incomplete trust inputs, changed artifacts, stale/revoked
 approvals and wrong builder provenance fail before any image push.
 
 After approval, the workflow pushes a fresh CPU image, pulls it by immutable
-digest, rechecks its bytes/configuration and records `image.json`. It binds the
+digest, rechecks its approved configuration digest and bytes, and records `image.json`. It binds the
 approval evidence and digest in the final manifest, keylessly signs it, verifies
 the exact main workflow identity/source/issuer/trigger and current permission,
 and uploads a fresh `m1-FULL_SOURCE_SHA` draft before exposing a prerelease.

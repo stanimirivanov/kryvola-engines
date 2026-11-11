@@ -1,59 +1,109 @@
-"""CI mirror bypass and fail-closed SP1 prerequisite installation."""
+"""Mirror-independent, checksum-pinned protoc installation and cache controls."""
 
+import hashlib
+import io
 import subprocess
 import tempfile
 import unittest
+import urllib.error
+from email.message import Message
 from pathlib import Path
 from unittest.mock import patch
+from zipfile import ZipFile
 
-from tools import install_sp1_host
+from tools import install_sp1_host as setup
+
+
+def fixture():
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        archive.writestr("bin/protoc", b"compiler fixture")
+        archive.writestr("include/google/protobuf/empty.proto", b"syntax = 'proto3';")
+    return buffer.getvalue()
 
 
 class Sp1HostInstallationTests(unittest.TestCase):
-    def test_azure_is_removed_and_apt_remains_bounded_and_required(self):
-        with tempfile.TemporaryDirectory() as directory:
-            mirrors = Path(directory) / "apt-mirrors.txt"
-            mirrors.write_text(
-                "http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n"
-            )
-            with patch("subprocess.run") as run:
-                install_sp1_host.install(mirrors)
-            self.assertNotIn("azure.archive.ubuntu.com", mirrors.read_text())
-            self.assertIn("https://archive.ubuntu.com/ubuntu/", mirrors.read_text())
-            self.assertIn("https://security.ubuntu.com/ubuntu/", mirrors.read_text())
-            commands = [call.args[0] for call in run.call_args_list]
-            self.assertEqual(len(commands), 3)
-            self.assertEqual(commands[-1], ["protoc", "--version"])
-            for call in run.call_args_list:
-                self.assertTrue(call.kwargs["check"])
-                self.assertLessEqual(call.kwargs["timeout"], 180)
-            for command in commands[:2]:
-                self.assertIn("Acquire::Retries=3", command)
-                self.assertIn("Acquire::https::Timeout=20", command)
-            self.assertIn("APT::Update::Error-Mode=any", commands[0])
-            self.assertEqual(commands[0][-1], "update")
-            self.assertEqual(commands[1][-2:], ["protobuf-compiler", "libprotobuf-dev"])
-            with patch("subprocess.run"):
-                install_sp1_host.install(mirrors)  # Repeated setup remains usable.
+    def test_runner_python_312_syntax(self):
+        import ast
 
-    def test_failed_update_or_install_stops_before_using_protoc(self):
-        for failure_at in (0, 1):
-            with tempfile.TemporaryDirectory() as directory:
-                mirrors = Path(directory) / "apt-mirrors.txt"
-                mirrors.write_text("https://archive.ubuntu.com/ubuntu/\n")
-                effects = [None] * failure_at + [subprocess.CalledProcessError(100, "apt-get")]
-                with patch("subprocess.run", side_effect=effects) as run:
-                    with self.assertRaises(subprocess.CalledProcessError):
-                        install_sp1_host.install(mirrors)
-                self.assertEqual(run.call_count, failure_at + 1)
+        ast.parse(Path(setup.__file__).read_text(), feature_version=(3, 12))
 
-    def test_missing_official_fallback_does_not_edit_or_install(self):
+    def test_installs_compiler_and_includes_without_apt_or_sudo(self):
+        raw = fixture()
         with tempfile.TemporaryDirectory() as directory:
-            mirrors = Path(directory) / "apt-mirrors.txt"
-            original = "http://azure.archive.ubuntu.com/ubuntu/\n"
-            mirrors.write_text(original)
-            with patch("subprocess.run") as run:
+            root = Path(directory)
+            output, env, paths = root / "protoc", root / "env", root / "paths"
+            with (
+                patch.object(setup, "SHA256", hashlib.sha256(raw).hexdigest()),
+                patch.object(setup, "download", return_value=raw) as fetch,
+                patch.dict("os.environ", {"GITHUB_ENV": str(env), "GITHUB_PATH": str(paths)}),
+                patch(
+                    "subprocess.run",
+                    return_value=subprocess.CompletedProcess([], 0, "libprotoc 3.21.12\n"),
+                ) as run,
+            ):
+                setup.install(output)
+                self.assertEqual((output / "bin/protoc").read_bytes(), b"compiler fixture")
+                self.assertTrue((output / "include/google/protobuf/empty.proto").is_file())
+                self.assertEqual((output / "bin/protoc").stat().st_mode & 0o777, 0o755)
+                self.assertIn("PROTOC_INCLUDE=" + str(output / "include"), env.read_text())
+                self.assertIn("PROTOC=" + str(output / "bin/protoc"), env.read_text())
+                self.assertEqual(paths.read_text(), str(output / "bin") + "\n")
+                self.assertEqual(run.call_args.args[0], [str(output / "bin/protoc"), "--version"])
+                setup.install(output)
+                fetch.assert_called_once()
+                (output / "bin/protoc").write_bytes(b"tampered")
                 with self.assertRaises(ValueError):
-                    install_sp1_host.install(mirrors)
-                run.assert_not_called()
-            self.assertEqual(mirrors.read_text(), original)
+                    setup.install(output)
+
+    def test_bad_download_does_not_install_or_export(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output, env = Path(directory) / "protoc", Path(directory) / "env"
+            with (
+                patch.object(setup, "download", return_value=b"corrupt"),
+                patch.dict("os.environ", {"GITHUB_ENV": str(env)}),
+            ):
+                with self.assertRaises(ValueError):
+                    setup.install(output)
+            self.assertFalse(output.exists())
+            self.assertFalse(env.exists())
+
+    def test_download_retries_transient_failures_but_not_permanent_errors(self):
+        with patch("urllib.request.urlopen", side_effect=TimeoutError), patch("time.sleep"):
+            with self.assertRaises(TimeoutError):
+                setup.download()
+        with patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.HTTPError(setup.URL, 404, "missing", Message(), None),
+        ) as fetch:
+            with self.assertRaises(urllib.error.HTTPError):
+                setup.download()
+            self.assertEqual(fetch.call_count, 1)
+
+    def test_invalid_version_and_unsafe_zip_are_rejected(self):
+        raw = fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            output, env = Path(directory) / "protoc", Path(directory) / "env"
+            with (
+                patch.object(setup, "SHA256", hashlib.sha256(raw).hexdigest()),
+                patch.object(setup, "download", return_value=raw),
+                patch.dict("os.environ", {"GITHUB_ENV": str(env)}),
+                patch(
+                    "subprocess.run",
+                    return_value=subprocess.CompletedProcess([], 0, "libprotoc 99\n"),
+                ),
+            ):
+                with self.assertRaises(ValueError):
+                    setup.install(output)
+                self.assertFalse(env.exists())
+        buffer = io.BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            archive.writestr("../escape", b"fixture")
+        raw = buffer.getvalue()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch.object(setup, "SHA256", hashlib.sha256(raw).hexdigest()),
+                patch.object(setup, "download", return_value=raw),
+            ):
+                with self.assertRaises(ValueError):
+                    setup.install(Path(directory) / "protoc")

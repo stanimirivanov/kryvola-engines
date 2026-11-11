@@ -268,3 +268,12 @@ The owner-only Rust crate and Python wheel now seal and restore the actual
 FHE-Q1 key under an independent wrapping key and custody context. Tests recover
 the original evaluation identity and open pre-existing ciphertext in a fresh
 owner process. Fabric owns the storage and recovery policy.
+
+## M1-PR30 Engines publication prerequisite
+
+[M1 publication](m1-publication.md) provides a separate denied candidate and
+externally approved publication path for the CPU Engine API/evaluator and owner
+wheel. It reuses installed owner checks, CPU image boundaries and exact scoped
+review verification. The manual workflow shares review metadata only until
+permission is verified. Platform #48 still requires actual approved releases;
+this implementation does not supply approval evidence or publish artifacts.

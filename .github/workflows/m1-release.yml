@@ -1,0 +1,110 @@
+name: engines-m1-publication
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [prepare, publish]
+        default: prepare
+        required: true
+      cpu_sha256:
+        description: Independently approved cpu-runtime.tar SHA-256
+        type: string
+      owner_sha256:
+        description: Independently approved owner wheel SHA-256
+        type: string
+      evidence_url:
+        description: HTTPS URL of the public review packet tar (no private signing keys)
+        type: string
+      evidence_sha256:
+        description: Independently pinned review packet tar SHA-256
+        type: string
+      policy_sha256:
+        description: Independently trusted current operator policy SHA-256
+        type: string
+      owner_builder:
+        description: Independently trusted owner-wheel builder DER Ed25519 public key hex
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: engines-m1-publication
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'prepare'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: "0.12.5"
+      - run: rustup toolchain install 1.98.1 --profile minimal
+      - run: uv sync --locked
+      - run: uv run --locked python tools/release.py install
+      - run: uv run --locked python tools/m1_release.py prepare
+      # Do not upload denied TFHE binaries/wheels as Actions artifacts.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: m1-review-metadata
+          path: build/m1/*.json
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'publish'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    env:
+      CPU_SHA256: ${{ inputs.cpu_sha256 }}
+      OWNER_SHA256: ${{ inputs.owner_sha256 }}
+      EVIDENCE_URL: ${{ inputs.evidence_url }}
+      EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
+      POLICY_SHA256: ${{ inputs.policy_sha256 }}
+      OWNER_BUILDER: ${{ inputs.owner_builder }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: "0.12.5"
+      - run: rustup toolchain install 1.98.1 --profile minimal
+      - run: uv sync --locked
+      - name: Refuse incomplete trust inputs and existing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -n "$CPU_SHA256" && test -n "$OWNER_SHA256" && test -n "$EVIDENCE_URL" && test -n "$EVIDENCE_SHA256" && test -n "$POLICY_SHA256" && test -n "$OWNER_BUILDER"
+          tag="m1-${GITHUB_SHA}"
+          existing="$(git ls-remote --tags origin "refs/tags/$tag")"
+          if [ -n "$existing" ]; then echo 'M1 tag exists; refusing replacement'; exit 1; fi
+          if gh release view "$tag"; then echo 'M1 release exists; refusing replacement'; exit 1; fi
+      - run: uv run --locked python tools/release.py install
+      - run: uv run --locked python tools/m1_release.py prepare
+      - name: Fetch the independently pinned review material
+        run: uv run --locked python tools/m1_release.py fetch-evidence --url "$EVIDENCE_URL" --sha256 "$EVIDENCE_SHA256" --packet build/m1-evidence
+      - name: Verify exact permissions before pushing the CPU image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io' EXIT
+          uv run --locked python tools/m1_release.py publish-image --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --packet build/m1-evidence --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
+      - name: Sign the final inventory and verify source, image and current permission
+        run: |
+          build/release-tools/cosign sign-blob --yes --bundle build/m1/manifest.sigstore.json build/m1/manifest.json
+          uv run --locked python tools/m1_release.py verify --source "$GITHUB_SHA" --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
+      - name: Publish a fresh M1 draft then expose the prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="m1-${GITHUB_SHA}"
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "$tag" --notes 'Scoped M1 CPU/owner delivery; no commercial-service or production approval.' build/m1/*
+          gh release edit "$tag" --draft=false

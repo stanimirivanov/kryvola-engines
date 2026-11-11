@@ -88,6 +88,13 @@ and uploads a fresh `m1-FULL_SOURCE_SHA` draft before exposing a prerelease.
 Only the publish job has registry/release/OIDC permissions. No local-key bypass
 is exposed. No SP1 package or commercial-service permission is added.
 
+Native compilation and owner-wheel execution occur in the read-only
+qualification job. It checks all three approvals before transferring candidate
+binaries/wheels through short-lived Actions artifacts. The dependent publisher
+does not rebuild Rust or install the owner wheel; it revalidates the exact inputs
+and current approvals before reconstructing and pushing the approved CPU image.
+Candidate metadata stays marked denied until final publication checks succeed.
+
 Image push and GitHub Release creation are not transactional. A failure can leave
 an image or draft; stop and inspect it rather than replacing/deleting/retrying
 publication automatically. Missing registry information fails closed. The original

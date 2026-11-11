@@ -56,10 +56,52 @@ jobs:
           path: build/m1/*.json
           if-no-files-found: error
           retention-days: 7
-  publish:
+  qualify-publication:
     if: github.ref == 'refs/heads/main' && inputs.mode == 'publish'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      CPU_SHA256: ${{ inputs.cpu_sha256 }}
+      OWNER_SHA256: ${{ inputs.owner_sha256 }}
+      IMAGE_SHA256: ${{ inputs.image_sha256 }}
+      EVIDENCE_URL: ${{ inputs.evidence_url }}
+      EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
+      POLICY_SHA256: ${{ inputs.policy_sha256 }}
+      OWNER_BUILDER: ${{ inputs.owner_builder }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: "0.12.5"
+      - run: rustup toolchain install 1.98.1 --profile minimal
+      - run: uv sync --locked
+      - name: Refuse incomplete trust inputs
+        run: test -n "$CPU_SHA256" && test -n "$OWNER_SHA256" && test -n "$IMAGE_SHA256" && test -n "$EVIDENCE_URL" && test -n "$EVIDENCE_SHA256" && test -n "$POLICY_SHA256" && test -n "$OWNER_BUILDER"
+      - run: uv run --locked python tools/release.py install
+      - run: uv run --locked python tools/m1_release.py prepare
+      - name: Fetch independently pinned public review material
+        run: uv run --locked python tools/m1_release.py fetch-evidence --url "$EVIDENCE_URL" --sha256 "$EVIDENCE_SHA256" --packet build/m1-evidence
+      - name: Verify exact permission before transferring native artifacts
+        run: uv run --locked python tools/m1_release.py authorize --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --image-sha256 "$IMAGE_SHA256" --packet build/m1-evidence --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: approved-m1-candidate
+          path: build/m1/*
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: approved-m1-evidence
+          path: build/m1-evidence/
+          if-no-files-found: error
+          retention-days: 1
+  publish:
+    needs: qualify-publication
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'publish'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: write
       packages: write
@@ -79,21 +121,24 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           version: "0.12.5"
-      - run: rustup toolchain install 1.98.1 --profile minimal
       - run: uv sync --locked
-      - name: Refuse incomplete trust inputs and existing releases
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: approved-m1-candidate
+          path: build/m1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: approved-m1-evidence
+          path: build/m1-evidence
+      - name: Refuse existing releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          test -n "$CPU_SHA256" && test -n "$OWNER_SHA256" && test -n "$IMAGE_SHA256" && test -n "$EVIDENCE_URL" && test -n "$EVIDENCE_SHA256" && test -n "$POLICY_SHA256" && test -n "$OWNER_BUILDER"
           tag="m1-${GITHUB_SHA}"
           existing="$(git ls-remote --tags origin "refs/tags/$tag")"
           if [ -n "$existing" ]; then echo 'M1 tag exists; refusing replacement'; exit 1; fi
           if gh release view "$tag"; then echo 'M1 release exists; refusing replacement'; exit 1; fi
       - run: uv run --locked python tools/release.py install
-      - run: uv run --locked python tools/m1_release.py prepare
-      - name: Fetch the independently pinned review material
-        run: uv run --locked python tools/m1_release.py fetch-evidence --url "$EVIDENCE_URL" --sha256 "$EVIDENCE_SHA256" --packet build/m1-evidence
       - name: Verify exact permissions before pushing the CPU image
         env:
           GH_TOKEN: ${{ github.token }}

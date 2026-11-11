@@ -118,10 +118,30 @@ class PermissionTests(unittest.TestCase):
             (packet / "policy.json").write_bytes(policy)
             pin = review_successor.sha256(policy)
             builder = evidence.keys["builder"]
-            result = m1.permissions(folder, SOURCE, packet, pin, builder)
+            result = m1.authorize(
+                folder,
+                SOURCE,
+                m1.sha(folder / "cpu-runtime.tar"),
+                m1.sha(m1.wheel(folder)),
+                "0" * 64,
+                packet,
+                pin,
+                builder,
+            )
             self.assertTrue(result["cpu"]["authenticated"])
             self.assertTrue(result["image"]["authenticated"])
             self.assertEqual(result["owner"]["wheel_sha256"], m1.sha(m1.wheel(folder)))
+            with self.assertRaisesRegex(ValueError, "CANDIDATE_PIN"):
+                m1.authorize(
+                    folder,
+                    SOURCE,
+                    "f" * 64,
+                    m1.sha(m1.wheel(folder)),
+                    "0" * 64,
+                    packet,
+                    pin,
+                    builder,
+                )
             for bad_pin, bad_builder in (("0" * 64, builder), (pin, evidence.keys["legal"])):
                 with self.assertRaises(ValueError):
                     m1.permissions(folder, SOURCE, packet, bad_pin, bad_builder)

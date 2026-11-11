@@ -516,6 +516,19 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, poli
             shutil.copyfile(path, destination / path.name)
 
 
+def authorize(
+    folder, source, cpu_sha256, owner_sha256, image_sha256, packet, policy_sha256, builder
+):
+    validate(folder, source)
+    require(
+        sha(folder / "cpu-runtime.tar") == cpu_sha256
+        and sha(wheel(folder)) == owner_sha256
+        and release.read(folder / "image-subject.json")["config_sha256"] == image_sha256,
+        "CANDIDATE_PIN",
+    )
+    return permissions(folder, source, packet, policy_sha256, builder)
+
+
 def verify(folder, source, policy_sha256, builder):
     validate(folder, source, approved=True)
     provenance = release.read(folder / "provenance.json")
@@ -558,7 +571,8 @@ def verify(folder, source, policy_sha256, builder):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "command", choices=("prepare", "check", "fetch-evidence", "publish-image", "verify")
+        "command",
+        choices=("prepare", "check", "fetch-evidence", "authorize", "publish-image", "verify"),
     )
     parser.add_argument("--folder", type=Path, default=OUTPUT)
     parser.add_argument("--source")
@@ -578,7 +592,7 @@ def main():
     elif args.command == "fetch-evidence":
         require(all((args.url, args.sha256, args.packet)))
         fetch_evidence(args.url, args.sha256, args.packet)
-    elif args.command == "publish-image":
+    elif args.command in {"authorize", "publish-image"}:
         require(
             all(
                 (
@@ -592,7 +606,7 @@ def main():
                 )
             )
         )
-        publish(
+        result = (authorize if args.command == "authorize" else publish)(
             args.folder,
             args.source,
             args.cpu_sha256,
@@ -602,6 +616,8 @@ def main():
             args.policy_sha256,
             args.builder,
         )
+        if args.command == "authorize":
+            print(json.dumps(result, sort_keys=True))
     else:
         require(all((args.source, args.policy_sha256, args.builder)))
         verify(args.folder, args.source, args.policy_sha256, args.builder)

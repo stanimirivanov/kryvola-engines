@@ -486,7 +486,7 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, poli
             ),
             "M1_IMAGE_LOOKUP_UNAVAILABLE",
         )
-        release.run("docker", "tag", "kryvola-cpu-engine:local", tag)
+        release.run("docker", "tag", "sha256:" + image_sha256, tag)
         release.run("docker", "push", tag)
         refs = json.loads(
             release.run(

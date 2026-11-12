@@ -314,3 +314,27 @@ rather than manifest 1ea9b9f803848e960902d1ca21bd6912a26bd6aa066b7b65f0dbcded330
 The sealed 4fb8e8d candidate and every recorded subject hash were rechecked and
 remain unchanged. No rebuild, retag, owner approval, registry push or publication
 was performed; prepare a fresh source-bound candidate after merge.
+
+## Hosted CPU image reproduction — issue #61
+
+Reproduced IMAGE_NON_REPRODUCIBLE with the original packaging path on an isolated
+Docker 28.0.4 daemon using the classic overlay2 store. Exported configurations
+differed only in two rootfs layer digests, consistent with the integrated
+exporter's timestamp-rewriting limitation. Reproducible packaging now uses a
+fresh docker-container builder with digest-pinned BuildKit v0.34.2, its bundled
+frontend/exporter, explicit linux/amd64, timestamp rewriting and no cache.
+Existing byte identity, worker isolation and owner-approval checks remain.
+
+All 96 Python tests and canonical fast checks passed. The real image regression
+passed on Docker 28.0.4/classic overlay2 and Docker 29.9.3/containerd: independent
+clean builds matched, both stores returned the same actual configuration digest,
+and changed worker bytes produced a different identity. Builder failure cleanup
+and invalid-epoch rejection also have focused coverage. The regression runs
+through cpu_boundary.py in the required TFHE CI job and native/full harness;
+no hosted result is claimed by these local runs.
+
+The approved e1c61db candidate manifest, all 11 subjects, local image reference
+and actual configuration digest were rechecked unchanged. Only disposable test
+images/builders were created. No new candidate, registry push, owner approval or
+publication was performed. A fresh source-bound candidate and separate owner
+decision are required after this tooling fix merges.

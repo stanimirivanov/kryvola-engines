@@ -88,6 +88,11 @@ def main() -> None:
         cwd=ROOT,
         check=True,
     )
+    subprocess.run(
+        [sys.executable, "-m", "unittest", "tests.live_cpu_image_reproduction", "-v"],
+        cwd=ROOT,
+        check=True,
+    )
 
 
 if __name__ == "__main__":

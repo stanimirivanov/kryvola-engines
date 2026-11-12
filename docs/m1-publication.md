@@ -24,6 +24,13 @@ file modes/times and the Docker SOURCE_DATE_EPOCH build argument, following
 [Docker reproducible-build guidance](https://docs.docker.com/build/ci/github-actions/reproducible-builds/).
 Two fresh, cache-disabled image builds use BuildKit timestamp rewriting and
 must produce the same image configuration digest before a candidate is recorded.
+Reproducible builds explicitly create a disposable `docker-container` builder
+using the digest-pinned BuildKit v0.34.2 image in `tools/cpu_engine_package.py`.
+Its bundled Dockerfile frontend/exporter and explicit `linux/amd64` platform
+replace dependence on the host daemon's integrated builder. The builder is
+removed after each build, including build failures; no shared cache or default
+builder selection is used. Non-release builds without `SOURCE_DATE_EPOCH`
+retain their existing local Docker path.
 The inventory binds the exact source, Spec pin, Cargo locks, runtime image recipe,
 separate owner wheel, SBOM and
 in-toto/SLSA-format provenance. CPU archives cannot contain owner material.
@@ -104,6 +111,44 @@ candidate or hashes. Its recorded configuration field contains the old local
 manifest ID; do not rewrite that sealed record or publish it as corrected.
 After merge, prepare a fresh source-bound candidate and inspect its newly
 recorded configuration digest before any separately authorized publication.
+
+## Hosted reproduction regression — issue #61
+
+The failed hosted runner image `ubuntu24/20261101.360` supplied Docker 28.0.4.
+An isolated Docker 28.0.4 daemon with its classic overlay2 image store reproduced
+the failure before the fix: actual exported configuration digests differed
+between two cache-disabled builds. Captured configuration JSON differed only in
+`rootfs.diff_ids` (the two added filesystem layers); `history`, runtime `config`
+and all other fields were identical. The original hosted configurations were
+not retained, so this diagnoses the reproduced failure rather than claiming a
+byte-for-byte comparison with the hosted images.
+
+This matches the integrated-exporter limitation described in
+[BuildKit issue 4986](https://github.com/moby/buildkit/issues/4986): timestamp
+rewriting needs the containerd image store when using that Docker driver.
+The pinned container builder instead uses BuildKit's own
+[timestamp-rewriting exporter](https://github.com/moby/buildkit/blob/v0.34.2/docs/build-repro.md#source_date_epoch)
+and loads its result into either host image store. The base image, worker
+inventory, non-root execution, owner-route rejection, installed-byte checks,
+actual configuration comparison and exact owner-selected hash gates remain.
+
+The existing `tools/cpu_boundary.py` gate also runs this real Docker regression
+in the required `tfhe` CI job and canonical native/full verification:
+
+```sh
+uv run --locked python -m unittest tests.live_cpu_image_reproduction -v
+```
+
+Run it after `cpu_boundary.py` has built the debug Engine API executable and
+release evaluator. It builds two images in separate fresh pinned builders,
+compares actual exported configuration-byte digests, then changes worker bytes
+and requires a different digest. Each build runs the worker image boundary
+checks. Test images use unique tags and are removed without touching the
+candidate directory or `kryvola-cpu-engine:local` tag. No artifacts are uploaded.
+
+The approved `e1c61db` candidate and its hashes are preserved. This tooling change
+does not prepare or publish a candidate. After merge, a fresh source-bound
+candidate and any changed hashes require a separate owner decision.
 
 ## Publication and consumer verification
 

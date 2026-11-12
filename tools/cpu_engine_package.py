@@ -5,11 +5,16 @@ import os
 import shutil
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = "kryvola-cpu-engine:local"
 FILES = {"kryvola-cpu-engine", "kryvola-cpu-evaluator", "cpu_runner.py", "LICENSE"}
+# Bundled Dockerfile frontend and exporter, independent of the host Docker driver.
+BUILDKIT = (
+    "moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe"
+)
 
 
 def run(*args: str) -> str:
@@ -23,6 +28,49 @@ def normalize(context: Path, epoch: int) -> None:
         path = context / name
         path.chmod(0o755 if name.startswith("kryvola-cpu-") else 0o644)
         os.utime(path, (epoch, epoch))
+
+
+def build_image(context: Path, epoch: str | None) -> None:
+    recipe = str(ROOT / "containers/CPU-Engine.Dockerfile")
+    if epoch is None:
+        run("docker", "build", "--file", recipe, "--tag", IMAGE, str(context))
+        return
+    normalize(context, int(epoch))
+    builder = "kryvola-cpu-" + uuid.uuid4().hex
+    run(
+        "docker",
+        "buildx",
+        "create",
+        "--name",
+        builder,
+        "--driver",
+        "docker-container",
+        "--driver-opt",
+        f"image={BUILDKIT}",
+    )
+    try:
+        run(
+            "docker",
+            "buildx",
+            "build",
+            "--builder",
+            builder,
+            "--platform",
+            "linux/amd64",
+            "--no-cache",
+            "--provenance=false",
+            "--output",
+            "type=docker,rewrite-timestamp=true",
+            "--build-arg",
+            f"SOURCE_DATE_EPOCH={epoch}",
+            "--file",
+            recipe,
+            "--tag",
+            IMAGE,
+            str(context),
+        )
+    finally:
+        run("docker", "buildx", "rm", builder)
 
 
 def main() -> None:
@@ -43,29 +91,7 @@ def main() -> None:
             (ROOT / "LICENSE", "LICENSE"),
         ):
             shutil.copy2(source, context / name)
-        epoch = os.environ.get("SOURCE_DATE_EPOCH")
-        build_args = []
-        build_command = ["docker", "build"]
-        if epoch is not None:
-            normalize(context, int(epoch))
-            build_command = ["docker", "buildx", "build"]
-            build_args = [
-                "--no-cache",
-                "--provenance=false",
-                "--output",
-                "type=docker,rewrite-timestamp=true",
-                "--build-arg",
-                f"SOURCE_DATE_EPOCH={epoch}",
-            ]
-        run(
-            *build_command,
-            *build_args,
-            "--file",
-            str(ROOT / "containers/CPU-Engine.Dockerfile"),
-            "--tag",
-            IMAGE,
-            str(context),
-        )
+        build_image(context, os.environ.get("SOURCE_DATE_EPOCH"))
     user = run("docker", "image", "inspect", IMAGE, "--format", "{{.Config.User}}")
     files = run(
         "docker",

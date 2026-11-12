@@ -14,11 +14,13 @@ REQUIRED_JOBS = {
     "owner",
     "tfhe",
     "native-qualification",
+    "native-reproduction",
     "sp1-build",
     "sp1-measurements",
     "sp1-qualification",
 }
 COMMANDS = {
+    "native-reproduction": ((PYTHON, "tools/native_build.py", "qualify"),),
     "foundation": (
         (PYTHON, "tools/verify.py", "fast"),
         (PYTHON, "-m", "unittest", "discover", "-s", "tests", "-v"),

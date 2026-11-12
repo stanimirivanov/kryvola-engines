@@ -1,7 +1,9 @@
 """Inspect the research worker's runtime dependency and linked package boundary."""
 
+import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -26,6 +28,12 @@ def output(*command: str) -> str:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--engine", type=Path)
+    parser.add_argument("--evaluator", type=Path)
+    args = parser.parse_args()
+    if bool(args.engine) != bool(args.evaluator):
+        parser.error("engine and evaluator must be provided together")
     tree = output(
         "cargo",
         "tree",
@@ -51,7 +59,7 @@ def main() -> None:
             "--no-deps",
         )
     )
-    binary = Path(metadata["target_directory"]) / "release/kryvola-cpu-evaluator"
+    binary = args.evaluator or Path(metadata["target_directory"]) / "release/kryvola-cpu-evaluator"
     symbols = output("nm", "-C", "--defined-only", str(binary))
     inspect(tree, symbols)
     with binary.open("rb") as stream:
@@ -78,11 +86,14 @@ def main() -> None:
             cwd=ROOT,
             check=True,
         )
-    subprocess.run(["cargo", "build", "--locked", "-p", "kryvola-cpu-engine"], cwd=ROOT, check=True)
+    if args.engine is None:
+        subprocess.run(
+            ["cargo", "build", "--locked", "-p", "kryvola-cpu-engine"], cwd=ROOT, check=True
+        )
     workspace = json.loads(
         output("cargo", "metadata", "--locked", "--no-deps", "--format-version", "1")
     )
-    engine = Path(workspace["target_directory"]) / "debug/kryvola-cpu-engine"
+    engine = args.engine or Path(workspace["target_directory"]) / "debug/kryvola-cpu-engine"
     subprocess.run(
         [sys.executable, "tools/cpu_engine_package.py", str(engine), str(binary)],
         cwd=ROOT,
@@ -92,6 +103,8 @@ def main() -> None:
         [sys.executable, "-m", "unittest", "tests.live_cpu_image_reproduction", "-v"],
         cwd=ROOT,
         check=True,
+        env=os.environ
+        | {"KRYVOLA_IMAGE_TEST_ENGINE": str(engine), "KRYVOLA_IMAGE_TEST_EVALUATOR": str(binary)},
     )
 
 

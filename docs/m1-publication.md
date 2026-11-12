@@ -176,3 +176,43 @@ bypass is exposed. The removed `fetch-evidence`, `--packet`, `--policy-sha256`
 and `--builder` CLI inputs are not accepted for M1 publication. Platform #48 must
 consume the v2 profile without reinterpreting frozen M0 records or claiming an
 independent review. Local candidates remain ineligible as published inputs.
+
+## Native build identity — issue #63
+
+Image timestamp reproduction does not make ambient native builds portable.
+The 78ffa30 hosted run passed within-run image equality, then rejected the local
+approval with CANDIDATE_PIN: its evaluator and image configuration bytes differed.
+The local system used Ubuntu 26.04/GCC 15; hosted used Ubuntu 24.04. A real Rust
+fixture also demonstrates that checkout, registry and generated-source paths can
+change native bytes. The original hosted binaries were not retained, so the
+precise contribution of each input to that historical difference is unproven.
+
+M1 native subjects now build in a separate, unshipped Linux/amd64 toolchain
+container. Native-Build.Dockerfile pins the Python/Debian, Rust and uv images by
+digest; uv.lock supplies the exact maturin/dependency hashes. No apt repository,
+host compiler, host Python, host Cargo target or host build flags supply release
+subjects. The existing checkout mounts read-only at /src; each build gets its own
+writable /build and Cargo cache. Only SOURCE_DATE_EPOCH is forwarded from the
+caller. Rust uses baseline x86-64 and explicit
+[path remapping](https://doc.rust-lang.org/rustc/command-line-arguments.html#--remap-path-prefix-remap-source-names-in-output)
+for source, registry and generated paths. uv installation follows its
+[container guidance](https://docs.astral.sh/uv/guides/integration/docker/).
+This owner-capable build environment is separate from the compute image.
+
+Preparation inspects and packages these exact worker binaries and installs/tests
+the exact owner wheel. Existing worker/owner separation, installed-byte checks,
+image digest equality and approval/hash guards remain enforced. The native build
+recipe is an additional manifest subject; use the source-matching verifier.
+Historical manifests and approvals are not migrated or rewritten.
+
+`uv run --locked python tools/native_build.py qualify` builds all three subjects
+twice with disjoint clean compiler/registry caches, compares exact bytes, then
+requires changed evaluator source to change its digest. It never uploads native
+artifacts or prepares/authorizes a candidate. This required CI native-reproduction
+job and canonical native/full gate supplement all existing checks. Temporary
+containers and compiler/registry directories are cleaned on completion/failure.
+
+The approved 78ffa30 candidate and hashes remain unchanged. Merging this fix
+publishes nothing; prepare and separately approve a fresh source-bound candidate
+after merge before any publication. A green local run is not a hosted result or
+independent native compiler/crypto qualification.

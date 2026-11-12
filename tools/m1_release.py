@@ -14,8 +14,9 @@ import tempfile
 from pathlib import Path
 
 if __package__:
-    from . import owner_wheel, qualification, release, review_successor
+    from . import native_build, owner_wheel, qualification, release, review_successor
 else:
+    import native_build
     import owner_wheel
     import qualification
     import release
@@ -32,6 +33,7 @@ INPUTS = {
     "owner.lock": "crates/owner-crypto/Cargo.lock",
     "spec.lock.json": "spec.lock.json",
     "CPU-Engine.Dockerfile": "containers/CPU-Engine.Dockerfile",
+    "Native-Build.Dockerfile": "containers/Native-Build.Dockerfile",
     "rust-toolchain.toml": "rust-toolchain.toml",
 }
 OWNER = "stanimirivanov"
@@ -366,39 +368,39 @@ def prepare():
         "RAYON_NUM_THREADS": "2",
         "SOURCE_DATE_EPOCH": epoch,
     }
+    with native_build.artifacts(epoch) as artifacts:
+        assemble(source, env, artifacts)
+
+
+def assemble(source, env, artifacts):
     release.run(
-        "cargo", "build", "--release", "--locked", "-p", "kryvola-cpu-engine", env=env, timeout=2400
-    )
-    release.run(
-        "cargo",
-        "build",
-        "--release",
-        "--locked",
-        "--manifest-path",
-        "crates/cpu-evaluator/Cargo.toml",
+        sys.executable,
+        ROOT / "tools/cpu_boundary.py",
+        "--engine",
+        artifacts / "kryvola-cpu-engine",
+        "--evaluator",
+        artifacts / "kryvola-cpu-evaluator",
         env=env,
-        timeout=2400,
     )
-    release.run(sys.executable, ROOT / "tools/cpu_boundary.py", env=env)
     release.run(
         sys.executable,
         ROOT / "tools/cpu_engine_package.py",
-        ROOT / "target/release/kryvola-cpu-engine",
-        ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator",
+        artifacts / "kryvola-cpu-engine",
+        artifacts / "kryvola-cpu-evaluator",
         env=env,
     )
     identity = image_identity("kryvola-cpu-engine:local")
     release.run(
         sys.executable,
         ROOT / "tools/cpu_engine_package.py",
-        ROOT / "target/release/kryvola-cpu-engine",
-        ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator",
+        artifacts / "kryvola-cpu-engine",
+        artifacts / "kryvola-cpu-evaluator",
         env=env,
     )
     require(image_identity("kryvola-cpu-engine:local") == identity, "IMAGE_NON_REPRODUCIBLE")
     paths = {
-        "kryvola-cpu-engine": ROOT / "target/release/kryvola-cpu-engine",
-        "kryvola-cpu-evaluator": ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator",
+        "kryvola-cpu-engine": artifacts / "kryvola-cpu-engine",
+        "kryvola-cpu-evaluator": artifacts / "kryvola-cpu-evaluator",
         "cpu_runner.py": ROOT / "tools/cpu_runner.py",
         "LICENSE": ROOT / "LICENSE",
     }
@@ -415,21 +417,7 @@ def prepare():
     )
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
-        release.run(
-            "maturin",
-            "build",
-            "--release",
-            "--locked",
-            "--manifest-path",
-            "crates/owner-crypto/python/Cargo.toml",
-            "--interpreter",
-            sys.executable,
-            "--out",
-            root / "wheels",
-            env=env,
-            timeout=2400,
-        )
-        (built,) = (root / "wheels").glob("*.whl")
+        (built,) = artifacts.glob("*.whl")
         owner_wheel.install_and_test(built, root)
         shutil.copyfile(built, OUTPUT / built.name)
     for name, original in INPUTS.items():

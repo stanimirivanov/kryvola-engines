@@ -338,3 +338,28 @@ and actual configuration digest were rechecked unchanged. Only disposable test
 images/builders were created. No new candidate, registry push, owner approval or
 publication was performed. A fresh source-bound candidate and separate owner
 decision are required after this tooling fix merges.
+
+## Reproducible M1 native subjects — issue #63
+
+Replace ambient M1 native compilation with a digest-pinned Linux/amd64 build
+container: existing Python, Rust and uv versions, fixed Debian/C toolchain,
+locked maturin, read-only /src and fresh /build caches. Normalize Rust source,
+registry and generated paths and baseline CPU flags. Candidate assembly consumes
+these exact Engine/evaluator/wheel outputs and retains existing boundary,
+installed-byte, image reproduction and owner-approval gates. The native build
+recipe becomes an additional manifest subject; historical inventories use their
+source-matching verifier and are not rewritten.
+
+TDD reproduced actual compiler path-dependent bytes before the fix. All 105
+Python tests, canonical fast checks and Actionlint passed. Two real clean native
+builds with disjoint caches produced equal bytes for all three subjects; changed
+evaluator source produced a different digest. Seven isolated installed owner
+wheel tests passed. New worker binaries also passed real CPU-image reproduction,
+installed-byte/isolation checks and the changed-worker negative control. The
+required native-reproduction CI job and native/full harness enforce the clean
+native comparison; no hosted result is claimed by this local evidence.
+
+Rehashed the approved 78ffa30 manifest, all 11 subjects, immutable local image
+reference and actual configuration digest: unchanged. No replacement candidate,
+authorization, workflow dispatch, artifact upload or publication was performed.
+After merge, prepare and separately approve a fresh source-bound candidate.

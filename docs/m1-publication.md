@@ -1,9 +1,10 @@
 # Permission-gated M1 Engines publication
 
 This is the Engines prerequisite for Platform M1-PR30 (#48). It adds a separate
-manual `.github/workflows/m1-release.yml` and `engines-m1-v1` inventory. The M0
-fake release and its identities remain unchanged. Merging this code publishes
-nothing and changes no research, distribution or commercial-service decision.
+manual `.github/workflows/m1-release.yml`, unchanged v1 candidates and explicitly
+labelled v2 owner-approved development releases. The M0 fake release and its
+identities remain unchanged. Merging this code publishes nothing and supplies no
+actual artifact approval or commercial-service decision.
 
 ## Candidate preparation
 
@@ -37,81 +38,71 @@ Preparation records `CANDIDATE` and `DENY`. Manual workflow mode `prepare`
 uploads only JSON review metadata, not TFHE binaries or wheels. Local research
 outputs stay in ignored build storage. It grants no distribution authority.
 
-## Exact artifact approval
+## Solo-owner development approval
 
-Use the existing [scoped review](scoped-crypto-review.md) and
-[owner-wheel qualification](owner-python.md) protocols. Reviewers and the owner
-builder operate outside this workflow; it never creates approval or builder
-signatures. Prepare a tar with exactly these public files:
+The project owner explicitly replaced the separate legal/parameter reviewers,
+external policy packet and builder key for M1 development releases. See
+[decision 0001](decisions/0001-solo-owner-m1-development.md). This is a project
+release decision, not an independent review or a grant of third-party rights.
+The historical M0 research records and standalone scoped-review/owner-wheel
+qualification protocols are unchanged.
 
-- `policy.json`: current operator policy, independently hash-pinned.
-- `cpu/decision.json`, `cpu/legal.sig`, `cpu/parameters.sig`: current
-  `artifact_distribution` approval over the exact `cpu-runtime.tar` hash.
-- `image/decision.json`, `image/legal.sig`, `image/parameters.sig`: a distinct
-  approval over the exact CPU image configuration SHA-256 recorded in
-  `image-subject.json`. The OCI configuration commits the runtime settings and
-  uncompressed root-filesystem layer hashes; this is distinct from approval of
-  the CPU tar and from the registry transport manifest digest.
-- `owner/decision.json`, `owner/legal.sig`, `owner/parameters.sig`: separate
-  approval over the exact owner wheel hash.
-- `owner/provenance.json`, `owner/builder.sig`: existing owner-wheel provenance
-  format, binding the exact wheel, source and owner Cargo lock, signed by the
-  independently provisioned builder key.
+After inspecting the prepared hashes, the repository owner `stanimirivanov` may
+explicitly dispatch `m1-release.yml` on main with mode `publish`, the three exact
+`cpu_sha256`, `image_sha256`, `owner_sha256` inputs, and the
+`approve_development_distribution` checkbox enabled. It defaults to false.
+No reviewer handoff, evidence URL, reviewer signatures, policy hash or separate
+builder key is needed. Missing approval, another actor, a non-main/non-dispatch
+context or any changed native subject fails before native artifact transfer.
 
-All three decisions bind the validated historical review predecessor and its TFHE
-parameters. The same current policy supplies distinct legal/parameter authorities
-and revocations. Supply the policy hash and builder public key independently;
-never derive trust from the bundle being verified. No repository fixture policy
-is trusted by default. Explicitly trusting fixture keys would be an operator
-misconfiguration, not a permission supplied by this tool.
+The preparation job rebuilds/qualifies the real artifacts, then records
+`owner-approval.json` with owner, source, run ID and all three hashes. It explicitly
+states `development_distribution`, `independent_review: false` and
+`production_ready: false`. The dependent publisher snapshots those bytes, checks
+that the approval belongs to the current owner dispatch, verifies image/archive
+agreement before registry push, and binds the approval into the final manifest.
+GitHub OIDC signing supplies authenticated workflow/source provenance; it replaces
+the separate builder signature for this profile.
 
-The external review workflow must inspect/reproduce the local research candidate
-before signing. The publishing run rebuilds it and refuses any mismatch with the
-independently selected archive, wheel and image configuration hashes. Reproducibility across machines is
-not assumed: differing bytes require new review; they cannot inherit approval.
-Review metadata/SBOM timestamps can differ without changing approved native bytes.
+**Behavior change:** approved releases use `engines-m1-v2` and
+`OWNER_APPROVED_DEVELOPMENT_ONLY`. They are never labelled independently reviewed
+`SCOPED_ARTIFACT_DISTRIBUTION`. Consumers must explicitly accept this development
+profile and select exact approved source/package/manifest/image hashes; the
+publisher signature does not establish licence/patent rights, parameter security,
+commercial-service permission or production qualification. Do not silently enable
+this profile in old consumers. Withdraw a development release from the operator's
+selected set if it is no longer acceptable; there is no external reviewer-policy
+expiry/revocation ceremony for this owner-only profile.
+
+Candidate preparation remains `engines-m1-v1`, `CANDIDATE`, `DENY`. The sealed
+existing c318ea3 candidate and its hashes are not rewritten by this policy change.
+After tooling changes merge, prepare a fresh source-bound candidate for the new
+main commit before separately authorizing publication. Rebuilds must match the
+three owner-selected native hashes; changed bytes require a new owner decision.
 
 ## Publication and consumer verification
 
-After merge, the owner may explicitly dispatch `publish` on main with the exact
-CPU archive, image configuration and owner wheel hashes, HTTPS review-bundle URL/hash, current policy hash and
-owner-builder DER Ed25519 public key hex. The URL carries no credentials; use
-public approval material only. The bounded fetch rejects extra files and unsafe
-archive members. Incomplete trust inputs, changed artifacts, stale/revoked
-approvals and wrong builder provenance fail before any image push.
+Only manual main publication can push the CPU image or create a release. The
+publisher pulls its new image by immutable manifest digest and compares its
+configuration and installed bytes to the approved candidate. Only that job has
+registry/release/OIDC write permissions; read-only qualification precedes it.
 
-After approval, the workflow pushes a fresh CPU image, pulls it by immutable
-digest, rechecks its approved configuration digest and bytes, and records `image.json`. It binds the
-approval evidence and digest in the final manifest, keylessly signs it, verifies
-the exact main workflow identity/source/issuer/trigger and current permission,
-and uploads a fresh `m1-FULL_SOURCE_SHA` draft before exposing a prerelease.
-Only the publish job has registry/release/OIDC permissions. No local-key bypass
-is exposed. No SP1 package or commercial-service permission is added.
+Image push and release creation are not transactional. A failed run may leave an
+image or draft: inspect rather than deleting/replacing/retrying publication
+automatically. Existing source tags/releases are never overwritten. No SP1
+package or production profile is enabled.
 
-Native compilation and owner-wheel execution occur in the read-only
-qualification job. It checks all three approvals before transferring candidate
-binaries/wheels through short-lived Actions artifacts. The dependent publisher
-does not rebuild Rust or install the owner wheel; it revalidates the exact inputs
-and current approvals before reconstructing and pushing the approved CPU image.
-Candidate metadata stays marked denied until final publication checks succeed.
-
-Image push and GitHub Release creation are not transactional. A failure can leave
-an image or draft; stop and inspect it rather than replacing/deleting/retrying
-publication automatically. Missing registry information fails closed. The original
-source tag is never overwritten. Permissions expire and can be revoked after
-publication; a signed manifest alone does not confer ongoing authority.
-
-Consumers use the matching pinned verifier checkout and independent current pins:
+Consumers use the matching pinned verifier checkout:
 
 ```sh
 uv run --locked python tools/m1_release.py verify --folder DOWNLOADED_ASSETS \
-  --source FULL_SOURCE_SHA --policy-sha256 CURRENT_POLICY_SHA256 \
-  --builder TRUSTED_OWNER_BUILDER_PUBLIC_KEY_HEX
+  --source FULL_SOURCE_SHA
 ```
 
-Verification checks exact asset and schema/lock bindings, publisher identity,
-current signed decisions, owner builder provenance, and pulled image/archive byte
-agreement. A changed current policy pin invalidates bundled older evidence; obtain
-updated approved release material rather than trusting stale review state. Platform
-must pin the final manifest/package hashes, Spec pin, image digest and current
-permission evidence. Local candidates and M0 fake assets remain ineligible.
+Verification requires the exact GitHub main workflow identity, issuer, source SHA
+and dispatch trigger, all subject/schema/toolchain hashes, the explicitly labelled
+owner development approval, and pulled image/archive agreement. No key-based
+bypass is exposed. The removed `fetch-evidence`, `--packet`, `--policy-sha256`
+and `--builder` CLI inputs are not accepted for M1 publication. Platform #48 must
+consume the v2 profile without reinterpreting frozen M0 records or claiming an
+independent review. Local candidates remain ineligible as published inputs.

@@ -277,3 +277,20 @@ wheel. It reuses installed owner checks, CPU image boundaries and exact scoped
 review verification. The manual workflow shares review metadata only until
 permission is verified. Platform #48 still requires actual approved releases;
 this implementation does not supply approval evidence or publish artifacts.
+
+## Solo-owner M1 development approval — issue #57
+
+The owner explicitly simplified M1 development-release approval for this
+single-developer project. One owner-only main dispatch, an approval checkbox
+and three exact native artifact hashes replace the external review packet and
+separate builder key. New signed releases use engines-m1-v2 and the explicit
+OWNER_APPROVED_DEVELOPMENT_ONLY label, with no independent-review or production
+claim. Historical M0 records and standalone strict qualification tools remain
+unchanged; see decisions/0001-solo-owner-m1-development.md.
+
+All 89 Python tests, canonical fast checks and Actionlint passed locally. New
+controls cover owner/context/checkbox/subject/run rejection, versioned approval
+binding and publisher-signature rejection before registry access. No native
+candidate rebuild, registry operation, release publication or actual approval
+was performed. The existing c318ea3 candidate and its hashes remain unchanged;
+after merge, prepare a fresh source-bound candidate for the new tooling source.

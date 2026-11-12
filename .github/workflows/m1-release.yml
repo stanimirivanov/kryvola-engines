@@ -8,26 +8,20 @@ on:
         default: prepare
         required: true
       cpu_sha256:
-        description: Independently approved cpu-runtime.tar SHA-256
+        description: Owner-selected cpu-runtime.tar SHA-256
         type: string
       image_sha256:
-        description: Independently approved CPU image configuration SHA-256
+        description: Owner-selected CPU image configuration SHA-256
         type: string
       owner_sha256:
-        description: Independently approved owner wheel SHA-256
+        description: Owner-selected owner wheel SHA-256
         type: string
-      evidence_url:
-        description: HTTPS URL of the public review packet tar (no private signing keys)
-        type: string
-      evidence_sha256:
-        description: Independently pinned review packet tar SHA-256
-        type: string
-      policy_sha256:
-        description: Independently trusted current operator policy SHA-256
-        type: string
-      owner_builder:
-        description: Independently trusted owner-wheel builder DER Ed25519 public key hex
-        type: string
+      approve_development_distribution:
+        description: I approve development distribution of these exact three artifacts (not independent review)
+        type: boolean
+        default: false
+        required: true
+
 permissions:
   contents: read
 concurrency:
@@ -64,10 +58,7 @@ jobs:
       CPU_SHA256: ${{ inputs.cpu_sha256 }}
       OWNER_SHA256: ${{ inputs.owner_sha256 }}
       IMAGE_SHA256: ${{ inputs.image_sha256 }}
-      EVIDENCE_URL: ${{ inputs.evidence_url }}
-      EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
-      POLICY_SHA256: ${{ inputs.policy_sha256 }}
-      OWNER_BUILDER: ${{ inputs.owner_builder }}
+      OWNER_APPROVAL: ${{ inputs.approve_development_distribution }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -77,24 +68,16 @@ jobs:
           version: "0.12.5"
       - run: rustup toolchain install 1.98.1 --profile minimal
       - run: uv sync --locked
-      - name: Refuse incomplete trust inputs
-        run: test -n "$CPU_SHA256" && test -n "$OWNER_SHA256" && test -n "$IMAGE_SHA256" && test -n "$EVIDENCE_URL" && test -n "$EVIDENCE_SHA256" && test -n "$POLICY_SHA256" && test -n "$OWNER_BUILDER"
+      - name: Require owner approval and exact artifact pins
+        run: test "$GITHUB_ACTOR" = stanimirivanov && test "$OWNER_APPROVAL" = true && test -n "$CPU_SHA256" && test -n "$OWNER_SHA256" && test -n "$IMAGE_SHA256"
       - run: uv run --locked python tools/release.py install
       - run: uv run --locked python tools/m1_release.py prepare
-      - name: Fetch independently pinned public review material
-        run: uv run --locked python tools/m1_release.py fetch-evidence --url "$EVIDENCE_URL" --sha256 "$EVIDENCE_SHA256" --packet build/m1-evidence
-      - name: Verify exact permission before transferring native artifacts
-        run: uv run --locked python tools/m1_release.py authorize --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --image-sha256 "$IMAGE_SHA256" --packet build/m1-evidence --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
+      - name: Record exact owner approval before transferring native artifacts
+        run: uv run --locked python tools/m1_release.py authorize --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --image-sha256 "$IMAGE_SHA256" --approve-development-distribution
       - uses: actions/upload-artifact@v4
         with:
           name: approved-m1-candidate
           path: build/m1/*
-          if-no-files-found: error
-          retention-days: 1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: approved-m1-evidence
-          path: build/m1-evidence/
           if-no-files-found: error
           retention-days: 1
   publish:
@@ -110,10 +93,7 @@ jobs:
       CPU_SHA256: ${{ inputs.cpu_sha256 }}
       OWNER_SHA256: ${{ inputs.owner_sha256 }}
       IMAGE_SHA256: ${{ inputs.image_sha256 }}
-      EVIDENCE_URL: ${{ inputs.evidence_url }}
-      EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
-      POLICY_SHA256: ${{ inputs.policy_sha256 }}
-      OWNER_BUILDER: ${{ inputs.owner_builder }}
+      OWNER_APPROVAL: ${{ inputs.approve_development_distribution }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -126,10 +106,6 @@ jobs:
         with:
           name: approved-m1-candidate
           path: build/m1
-      - uses: actions/download-artifact@v8
-        with:
-          name: approved-m1-evidence
-          path: build/m1-evidence
       - name: Refuse existing releases
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,21 +115,21 @@ jobs:
           if [ -n "$existing" ]; then echo 'M1 tag exists; refusing replacement'; exit 1; fi
           if gh release view "$tag"; then echo 'M1 release exists; refusing replacement'; exit 1; fi
       - run: uv run --locked python tools/release.py install
-      - name: Verify exact permissions before pushing the CPU image
+      - name: Verify exact owner approval before pushing the CPU image
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           trap 'docker logout ghcr.io' EXIT
-          uv run --locked python tools/m1_release.py publish-image --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --image-sha256 "$IMAGE_SHA256" --packet build/m1-evidence --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
-      - name: Sign the final inventory and verify source, image and current permission
+          uv run --locked python tools/m1_release.py publish-image --source "$GITHUB_SHA" --cpu-sha256 "$CPU_SHA256" --owner-sha256 "$OWNER_SHA256" --image-sha256 "$IMAGE_SHA256"
+      - name: Sign the final inventory and verify source, image and owner approval
         run: |
           build/release-tools/cosign sign-blob --yes --bundle build/m1/manifest.sigstore.json build/m1/manifest.json
-          uv run --locked python tools/m1_release.py verify --source "$GITHUB_SHA" --policy-sha256 "$POLICY_SHA256" --builder "$OWNER_BUILDER"
+          uv run --locked python tools/m1_release.py verify --source "$GITHUB_SHA"
       - name: Publish a fresh M1 draft then expose the prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="m1-${GITHUB_SHA}"
-          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "$tag" --notes 'Scoped M1 CPU/owner delivery; no commercial-service or production approval.' build/m1/*
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "$tag" --notes 'Owner-approved M1 development delivery; no independent legal/security review or third-party rights grant; no production approval.' build/m1/*
           gh release edit "$tag" --draft=false

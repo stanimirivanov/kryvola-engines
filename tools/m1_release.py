@@ -244,12 +244,59 @@ def permissions(folder, source):
     return value
 
 
-def image_identity(image):
+def image_reference(image):
+    """Docker-addressable immutable reference; not necessarily a configuration digest."""
     value = release.run(
         "docker", "image", "inspect", image, "--format", "{{.Id}}", capture_output=True, text=True
     ).stdout.strip()
     require(re.fullmatch(r"sha256:[0-9a-f]{64}", value))
-    return value.removeprefix("sha256:")
+    return value
+
+
+def image_identity(image):
+    """Hash the actual configuration bytes from a single-image Docker save archive."""
+    reference = image_reference(image)
+    with tempfile.TemporaryDirectory(prefix="m1-image-config-") as temporary:
+        path = Path(temporary) / "image.tar"
+        release.run("docker", "image", "save", "--output", path, reference, timeout=120)
+        with tarfile.open(path, "r:") as stream:
+            members = stream.getmembers()
+
+            def member_bytes(name, limit):
+                matches = [item for item in members if item.name == name]
+                require(len(matches) == 1, "IMAGE_CONFIG_ARCHIVE")
+                entry = matches[0]
+                require(entry.isfile() and 0 < entry.size <= limit, "IMAGE_CONFIG_ARCHIVE")
+                contents = stream.extractfile(entry)
+                if contents is None:
+                    raise ValueError("IMAGE_CONFIG_ARCHIVE")
+                data = contents.read(limit + 1)
+                require(len(data) == entry.size, "IMAGE_CONFIG_ARCHIVE")
+                return data
+
+            manifest = json.loads(member_bytes("manifest.json", 64 << 10))
+            require(isinstance(manifest, list) and len(manifest) == 1, "IMAGE_CONFIG_ARCHIVE")
+            require(isinstance(manifest[0], dict), "IMAGE_CONFIG_ARCHIVE")
+            name = manifest[0].get("Config")
+            require(isinstance(name, str), "IMAGE_CONFIG_REFERENCE")
+            match = re.fullmatch(r"(?:blobs/sha256/([0-9a-f]{64})|([0-9a-f]{64})\.json)", name)
+            if match is None:
+                raise ValueError("IMAGE_CONFIG_REFERENCE")
+            data = member_bytes(name, 1 << 20)
+            digest = hashlib.sha256(data).hexdigest()
+            require(digest == (match[1] or match[2]), "IMAGE_CONFIG_DIGEST_MISMATCH")
+            config = json.loads(data)
+            require(
+                isinstance(config, dict)
+                and isinstance(config.get("architecture"), str)
+                and isinstance(config.get("os"), str)
+                and isinstance(config.get("config"), dict)
+                and isinstance(config.get("rootfs"), dict)
+                and config["rootfs"].get("type") == "layers"
+                and isinstance(config["rootfs"].get("diff_ids"), list),
+                "IMAGE_CONFIG_INVALID",
+            )
+            return digest
 
 
 def image_check(image, contents):
@@ -453,10 +500,9 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256):
                 ).stdout.strip()
             },
         )
-        image_check("kryvola-cpu-engine:local", contents)
-        require(
-            image_identity("kryvola-cpu-engine:local") == image_sha256, "IMAGE_REBUILD_MISMATCH"
-        )
+        local_image = image_reference("kryvola-cpu-engine:local")
+        image_check(local_image, contents)
+        require(image_identity(local_image) == image_sha256, "IMAGE_REBUILD_MISMATCH")
         permissions(folder, source)
         tag = IMAGE + ":m1-" + source
         probe = release.run("docker", "manifest", "inspect", tag, check=False, capture_output=True)
@@ -467,7 +513,7 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256):
             ),
             "M1_IMAGE_LOOKUP_UNAVAILABLE",
         )
-        release.run("docker", "tag", "sha256:" + image_sha256, tag)
+        release.run("docker", "tag", local_image, tag)
         release.run("docker", "push", tag)
         refs = json.loads(
             release.run(

@@ -1,4 +1,4 @@
-"""M1 CPU/owner candidate and permission-gated publication, separate from M0."""
+"""M1 CPU/owner delivery with explicit solo-owner development approval, separate from M0."""
 
 import argparse
 import hashlib
@@ -11,17 +11,14 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 if __package__:
-    from . import owner_wheel, qualification, release, review_dispositions, review_successor
+    from . import owner_wheel, qualification, release, review_successor
 else:
     import owner_wheel
     import qualification
     import release
-    import review_dispositions
     import review_successor
 
 ROOT = release.ROOT
@@ -37,15 +34,8 @@ INPUTS = {
     "CPU-Engine.Dockerfile": "containers/CPU-Engine.Dockerfile",
     "rust-toolchain.toml": "rust-toolchain.toml",
 }
-EVIDENCE = (
-    {"policy.json"}
-    | {
-        f"{role}/{name}"
-        for role in ("cpu", "image", "owner")
-        for name in ("decision.json", "legal.sig", "parameters.sig")
-    }
-    | {"owner/provenance.json", "owner/builder.sig"}
-)
+OWNER = "stanimirivanov"
+APPROVAL = "owner-approval.json"
 
 
 def require(value, code="M1_RELEASE_REJECTED"):
@@ -96,7 +86,7 @@ def seal(folder, source, state):
     require(review_successor.is_hex(source, 40) and state in {"CANDIDATE", "APPROVED"})
     names = set(INPUTS) | {"cpu-runtime.tar", wheel(folder).name, "sbom.json", "image-subject.json"}
     if state == "APPROVED":
-        names |= {"permission-evidence.tar", "image.json"}
+        names |= {APPROVAL, "image.json"}
     release.write(
         folder / "provenance.json",
         {
@@ -121,10 +111,10 @@ def seal(folder, source, state):
     )
     names.add("provenance.json")
     manifest = {
-        "schema_version": "engines-m1-v1",
+        "schema_version": "engines-m1-v1" if state == "CANDIDATE" else "engines-m1-v2",
         "source": source,
         "state": state,
-        "distribution": "DENY" if state == "CANDIDATE" else "SCOPED_ARTIFACT_DISTRIBUTION",
+        "distribution": "DENY" if state == "CANDIDATE" else "OWNER_APPROVED_DEVELOPMENT_ONLY",
         "spec": release.read(folder / "spec.lock.json"),
         "production_ready": False,
         "subjects": {name: sha(folder / name) for name in sorted(names)},
@@ -145,7 +135,7 @@ def validate(folder, source, *, approved=False):
         "image-subject.json",
     }
     if approved:
-        names |= {"permission-evidence.tar", "image.json"}
+        names |= {APPROVAL, "image.json"}
     require(
         set(manifest)
         == {
@@ -159,18 +149,18 @@ def validate(folder, source, *, approved=False):
         }
     )
     require(
-        manifest["schema_version"] == "engines-m1-v1"
+        manifest["schema_version"] == ("engines-m1-v2" if approved else "engines-m1-v1")
         and manifest["source"] == source
         and manifest["state"] == state
     )
     require(
-        manifest["distribution"] == ("SCOPED_ARTIFACT_DISTRIBUTION" if approved else "DENY")
+        manifest["distribution"] == ("OWNER_APPROVED_DEVELOPMENT_ONLY" if approved else "DENY")
         and manifest["production_ready"] is False
     )
     require(
         set(manifest["subjects"]) == names
         and {p.name for p in folder.iterdir()}
-        <= names | {"manifest.json", "manifest.sigstore.json"}
+        <= names | {"manifest.json", "manifest.sigstore.json", APPROVAL}
     )
     require(all(sha(folder / name) == digest for name, digest in manifest["subjects"].items()))
     require(manifest["spec"] == release.read(ROOT / "spec.lock.json"))
@@ -200,6 +190,7 @@ def validate(folder, source, *, approved=False):
         == {"source": source, "spec": manifest["spec"]}
     )
     if approved:
+        permissions(folder, source)
         image = release.read(folder / "image.json")
         require(
             set(image) == {"source", "image", "cpu_sha256"}
@@ -210,54 +201,47 @@ def validate(folder, source, *, approved=False):
     return manifest
 
 
-def permissions(folder, source, packet, policy_sha256, builder):
-    """Only independently pinned, current external decisions confer distribution permission."""
-    require(review_successor.is_hex(policy_sha256, 64) and review_successor.is_hex(builder, 88))
-    qualification.validate(ROOT)
-    policy = packet / "policy.json"
-    predecessor = qualification.digest(ROOT / review_dispositions.RECORD)
-    cpu = review_successor.verify(
-        packet / "cpu",
-        policy,
-        policy_sha256,
-        predecessor,
-        "artifact_distribution",
-        sha(folder / "cpu-runtime.tar"),
+def owner_context(source):
+    expected = {
+        "GITHUB_ACTOR": OWNER,
+        "GITHUB_REPOSITORY": f"{OWNER}/kryvola-engines",
+        "GITHUB_REF": "refs/heads/main",
+        "GITHUB_EVENT_NAME": "workflow_dispatch",
+        "GITHUB_SHA": source,
+        "GITHUB_WORKFLOW_REF": IDENTITY.removeprefix("https://github.com/"),
+    }
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    require(
+        all(os.environ.get(key) == value for key, value in expected.items())
+        and re.fullmatch(r"[1-9][0-9]{0,29}", run_id),
+        "OWNER_DISPATCH_REQUIRED",
     )
-    image = review_successor.verify(
-        packet / "image",
-        policy,
-        policy_sha256,
-        predecessor,
-        "artifact_distribution",
-        release.read(folder / "image-subject.json")["config_sha256"],
-    )
-    owner = owner_wheel.verify_wheel(
-        wheel(folder),
-        packet / "owner",
-        policy,
-        policy_sha256,
-        source,
-        sha(ROOT / INPUTS["owner.lock"]),
-        builder,
-    )
-    return {"cpu": cpu, "image": image, "owner": owner}
+    return run_id
 
 
-def fetch_evidence(url, expected, destination):
-    require(urllib.parse.urlparse(url).scheme == "https" and review_successor.is_hex(expected, 64))
-    with urllib.request.urlopen(url, timeout=60) as response:
-        raw = response.read((1 << 20) + 1)
-    require(len(raw) <= 1 << 20 and hashlib.sha256(raw).hexdigest() == expected)
-    with tempfile.TemporaryDirectory() as temporary:
-        path = Path(temporary) / "packet.tar"
-        path.write_bytes(raw)
-        contents = unpack(path, EVIDENCE, 16384)
-    destination.mkdir(parents=True, exist_ok=False)
-    for name, data in contents.items():
-        target = destination / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
+def approval_subject(folder, source):
+    return {
+        "schema_version": "solo-owner-development-v1",
+        "owner": OWNER,
+        "source": source,
+        "cpu_sha256": sha(folder / "cpu-runtime.tar"),
+        "owner_sha256": sha(wheel(folder)),
+        "image_sha256": release.read(folder / "image-subject.json")["config_sha256"],
+        "intended_use": "development_distribution",
+        "independent_review": False,
+        "production_ready": False,
+    }
+
+
+def permissions(folder, source):
+    """An owner decision for development only; not independent review or a rights grant."""
+    value = json.loads(review_successor.read(folder / APPROVAL, 4096))
+    expected = approval_subject(folder, source)
+    require(isinstance(value, dict) and set(value) == set(expected) | {"run_id"})
+    require(all(value[key] == expected[key] for key in expected))
+    require(value["independent_review"] is False and value["production_ready"] is False)
+    require(isinstance(value["run_id"], str) and re.fullmatch(r"[1-9][0-9]{0,29}", value["run_id"]))
+    return value
 
 
 def image_identity(image):
@@ -423,7 +407,7 @@ def prepare():
     )
 
 
-def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, policy_sha256, builder):
+def publish(folder, source, cpu_sha256, owner_sha256, image_sha256):
     manifest = validate(folder, source)
     require(
         sha(folder / "cpu-runtime.tar") == cpu_sha256
@@ -436,7 +420,7 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, poli
         destination = folder
         folder = root / "candidate"
         folder.mkdir(mode=0o700)
-        for name in set(manifest["subjects"]) | {"manifest.json"}:
+        for name in set(manifest["subjects"]) | {"manifest.json", APPROVAL}:
             (folder / name).write_bytes(review_successor.read(destination / name, 128 << 20))
         validate(folder, source)
         require(
@@ -445,12 +429,9 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, poli
             and release.read(folder / "image-subject.json")["config_sha256"] == image_sha256,
             "CANDIDATE_PIN",
         )
-        evidence = {name: review_successor.read(packet / name, 16384) for name in EVIDENCE}
-        for name, data in evidence.items():
-            target = root / name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
-        permissions(folder, source, root, policy_sha256, builder)
+        require(
+            permissions(folder, source)["run_id"] == owner_context(source), "OWNER_RUN_MISMATCH"
+        )
 
         contents = unpack(folder / "cpu-runtime.tar", CPU_FILES, 128 << 20)
         for name, data in contents.items():
@@ -476,7 +457,7 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, poli
         require(
             image_identity("kryvola-cpu-engine:local") == image_sha256, "IMAGE_REBUILD_MISMATCH"
         )
-        permissions(folder, source, root, policy_sha256, builder)
+        permissions(folder, source)
         tag = IMAGE + ":m1-" + source
         probe = release.run("docker", "manifest", "inspect", tag, check=False, capture_output=True)
         require(probe.returncode != 0, "M1_IMAGE_EXISTS")
@@ -504,21 +485,18 @@ def publish(folder, source, cpu_sha256, owner_sha256, image_sha256, packet, poli
         release.run("docker", "pull", image)
         image_check(image, contents)
         require(image_identity(image) == image_sha256, "IMAGE_PULL_MISMATCH")
-        archive(folder / "permission-evidence.tar", evidence)
         release.write(
             folder / "image.json",
             {"source": source, "image": image, "cpu_sha256": sha(folder / "cpu-runtime.tar")},
         )
         seal(folder, source, "APPROVED")
         validate(folder, source, approved=True)
-        permissions(folder, source, root, policy_sha256, builder)
+        permissions(folder, source)
         for path in folder.iterdir():
             shutil.copyfile(path, destination / path.name)
 
 
-def authorize(
-    folder, source, cpu_sha256, owner_sha256, image_sha256, packet, policy_sha256, builder
-):
+def authorize(folder, source, cpu_sha256, owner_sha256, image_sha256, *, approve=False):
     validate(folder, source)
     require(
         sha(folder / "cpu-runtime.tar") == cpu_sha256
@@ -526,10 +504,13 @@ def authorize(
         and release.read(folder / "image-subject.json")["config_sha256"] == image_sha256,
         "CANDIDATE_PIN",
     )
-    return permissions(folder, source, packet, policy_sha256, builder)
+    require(approve is True, "OWNER_APPROVAL_REQUIRED")
+    approval = approval_subject(folder, source) | {"run_id": owner_context(source)}
+    release.write(folder / APPROVAL, approval)
+    return permissions(folder, source)
 
 
-def verify(folder, source, policy_sha256, builder):
+def verify(folder, source):
     validate(folder, source, approved=True)
     provenance = release.read(folder / "provenance.json")
     require(
@@ -552,13 +533,6 @@ def verify(folder, source, policy_sha256, builder):
         folder / "manifest.json",
         capture_output=True,
     )
-    with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary)
-        for name, data in unpack(folder / "permission-evidence.tar", EVIDENCE, 16384).items():
-            target = root / name
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
-        permissions(folder, source, root, policy_sha256, builder)
     image = release.read(folder / "image.json")["image"]
     release.run("docker", "pull", image)
     image_check(image, unpack(folder / "cpu-runtime.tar", CPU_FILES, 128 << 20))
@@ -571,56 +545,33 @@ def verify(folder, source, policy_sha256, builder):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "command",
-        choices=("prepare", "check", "fetch-evidence", "authorize", "publish-image", "verify"),
+        "command", choices=("prepare", "check", "authorize", "publish-image", "verify")
     )
     parser.add_argument("--folder", type=Path, default=OUTPUT)
     parser.add_argument("--source")
     parser.add_argument("--cpu-sha256")
     parser.add_argument("--owner-sha256")
     parser.add_argument("--image-sha256")
-    parser.add_argument("--packet", type=Path)
-    parser.add_argument("--policy-sha256")
-    parser.add_argument("--builder")
-    parser.add_argument("--url")
-    parser.add_argument("--sha256")
+    parser.add_argument("--approve-development-distribution", action="store_true")
     args = parser.parse_args()
     if args.command == "prepare":
         prepare()
     elif args.command == "check":
         validate(args.folder, args.source)
-    elif args.command == "fetch-evidence":
-        require(all((args.url, args.sha256, args.packet)))
-        fetch_evidence(args.url, args.sha256, args.packet)
     elif args.command in {"authorize", "publish-image"}:
-        require(
-            all(
-                (
-                    args.source,
-                    args.cpu_sha256,
-                    args.owner_sha256,
-                    args.image_sha256,
-                    args.packet,
-                    args.policy_sha256,
-                    args.builder,
+        require(all((args.source, args.cpu_sha256, args.owner_sha256, args.image_sha256)))
+        pins = (args.folder, args.source, args.cpu_sha256, args.owner_sha256, args.image_sha256)
+        if args.command == "authorize":
+            print(
+                json.dumps(
+                    authorize(*pins, approve=args.approve_development_distribution), sort_keys=True
                 )
             )
-        )
-        result = (authorize if args.command == "authorize" else publish)(
-            args.folder,
-            args.source,
-            args.cpu_sha256,
-            args.owner_sha256,
-            args.image_sha256,
-            args.packet,
-            args.policy_sha256,
-            args.builder,
-        )
-        if args.command == "authorize":
-            print(json.dumps(result, sort_keys=True))
+        else:
+            publish(*pins)
     else:
-        require(all((args.source, args.policy_sha256, args.builder)))
-        verify(args.folder, args.source, args.policy_sha256, args.builder)
+        require(args.source)
+        verify(args.folder, args.source)
 
 
 if __name__ == "__main__":

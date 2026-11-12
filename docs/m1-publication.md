@@ -80,6 +80,31 @@ After tooling changes merge, prepare a fresh source-bound candidate for the new
 main commit before separately authorizing publication. Rebuilds must match the
 three owner-selected native hashes; changed bytes require a new owner decision.
 
+## Image configuration identity
+
+The approved image subject is SHA-256 of the actual OCI/Docker configuration JSON
+bytes, not a mutable tag, Docker inspect `.Id`, registry manifest digest or an
+annotation. Docker image stores may report a manifest digest as `.Id`.
+`image_identity` resolves an immutable local Docker reference, exports that image
+with [Docker image save](https://docs.docker.com/reference/cli/docker/image/save/),
+and reads the single configuration referenced by the archive's `manifest.json`.
+It supports `blobs/sha256/DIGEST` and classic `DIGEST.json` layouts, verifies the
+[content-addressed configuration](https://github.com/opencontainers/image-spec/blob/main/config.md),
+and rejects missing, ambiguous, linked, oversized, malformed or mismatched data.
+The archive is temporary; no layer files are extracted or candidate files edited.
+Configuration reads are capped at 1 MiB and export at 120 seconds.
+
+Preparation compares two configuration digests. Publishing and consumer
+verification compare rebuilt/pulled configurations to the same approved digest.
+Docker tagging uses the separately resolved immutable local image reference,
+because a configuration digest may not address an image in the Docker store.
+
+Issue #59 corrects identity extraction without changing the current 4fb8e8d
+candidate or hashes. Its recorded configuration field contains the old local
+manifest ID; do not rewrite that sealed record or publish it as corrected.
+After merge, prepare a fresh source-bound candidate and inspect its newly
+recorded configuration digest before any separately authorized publication.
+
 ## Publication and consumer verification
 
 Only manual main publication can push the CPU image or create a release. The

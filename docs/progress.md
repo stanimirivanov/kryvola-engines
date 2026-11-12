@@ -294,3 +294,23 @@ binding and publisher-signature rejection before registry access. No native
 candidate rebuild, registry operation, release publication or actual approval
 was performed. The existing c318ea3 candidate and its hashes remain unchanged;
 after merge, prepare a fresh source-bound candidate for the new tooling source.
+
+
+## Actual image configuration identity — issue #59
+
+Correct the release helper's assumption that Docker inspect .Id is always a
+configuration digest. Hash the actual configuration JSON from a single-image
+Docker export, validate its content-addressed reference and bounded archive
+metadata, and retain a separate immutable Docker reference for tagging. Existing
+configuration comparisons during preparation, rebuild and consumer verification
+now use the corrected value; the owner-development approval policy is unchanged.
+
+TDD reproduced the manifest-ID mismatch before the fix. All 94 Python tests and
+canonical fast checks passed. New coverage includes OCI/classic layouts, export
+failure, ambiguous/missing/linked/oversized/malformed/tampered config metadata and
+correct tagging references. Read-only verification against the existing local
+image returned config ba3ca171d9ef60e5b531a94626df883bb2f09de531254aa7a5db6fbd49c33e96
+rather than manifest 1ea9b9f803848e960902d1ca21bd6912a26bd6aa066b7b65f0dbcded330db9ea.
+The sealed 4fb8e8d candidate and every recorded subject hash were rechecked and
+remain unchanged. No rebuild, retag, owner approval, registry push or publication
+was performed; prepare a fresh source-bound candidate after merge.

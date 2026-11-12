@@ -31,7 +31,7 @@ gate. Configuration/report tests establish no crypto execution or qualification.
 
 [Fake Engine RPC conformance](fake-engine.md) documents M0-PR15's synthetic identity, strict codec factory, bounded volatile state and race/timeout behavior. The full harness includes its executable loopback check; this is not evidence of encrypted inference or an enabled assurance profile.
 
-CI is configured on pull requests/main pushes with commit-pinned actions, `contents: read`, no persistent Git credentials and no production secrets. A hosted CI result is not claimed by configuration. Maintainers must enable required status checks (`verify`), review/branch rules and any desired repository security settings; no remote protections are changed here. Local hooks are not merge enforcement.
+CI is configured on pull requests/main pushes with major-version action tags (except setup-uv, pinned to the approved release commit), `contents: read`, no persistent Git credentials and no production secrets. A hosted CI result is not claimed by configuration. Maintainers must enable required status checks (`verify`), review/branch rules and any desired repository security settings; no remote protections are changed here. Local hooks are not merge enforcement.
 
 No `.codex/config.toml` or repository skill is needed for the current workflow. Root instructions link detailed sources on demand and preserve the configured model/reasoning effort. Scoped instruction files are unnecessary because responsibilities do not yet require different agent rules.
 

@@ -1,0 +1,45 @@
+name: SP1 host checks
+on:
+  workflow_call:
+    inputs:
+      stage:
+        description: SP1 host check to execute
+        required: true
+        type: string
+      guest-artifact-id:
+        description: Immutable artifact ID produced by sp1-build
+        required: true
+        type: string
+      guest-manifest-sha256:
+        description: Expected digest of the built guest manifest
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.12.5"
+      - run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+      - name: Install SP1 host protobuf prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends protobuf-compiler libprotobuf-dev
+          protoc --version
+      - run: uv sync --locked
+      - uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ inputs.guest-artifact-id }}
+          merge-multiple: true
+          path: build/sp1/elf/
+      - run: uv run --locked python tools/ci.py "$SP1_STAGE" --manifest-sha256 "$GUEST_MANIFEST_SHA256"
+        env:
+          SP1_STAGE: ${{ inputs.stage }}
+          GUEST_MANIFEST_SHA256: ${{ inputs.guest-manifest-sha256 }}

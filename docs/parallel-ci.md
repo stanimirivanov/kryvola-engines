@@ -25,11 +25,17 @@ updated to require `verify`; this change does not edit remote protection rules.
 `tools/ci.py` dispatches these partitions. The original `tools/verify.py`
 fast/native/full commands remain available with their existing behavior.
 
+Both SP1 consumers call `.github/workflows/sp1-host.yml`, sharing checkout,
+toolchain/protobuf setup, guest download and dispatch. Their caller job IDs and
+parallel scheduling remain unchanged; hosted leaf checks appear as
+`sp1-measurements / host` and `sp1-qualification / host`. The aggregate `verify`
+continues to require both caller results.
+
 ## SP1 transfer boundary
 
 Only public guest ELFs and their manifest move between jobs. No proof objects,
 private keys, host executables, or Cargo target trees are transferred. The upload
-and download actions are commit-pinned. Consumers select the producer's immutable
+and download actions use major-version tags. Consumers select the producer's immutable
 artifact ID within the same workflow run, so rerunning failed consumers can use
 the successful producer's artifact. Artifact retention is one day; after expiry,
 rerun the full workflow to rebuild guests.

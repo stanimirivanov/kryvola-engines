@@ -99,23 +99,3 @@ rejection and 12 serialization/report. Stderr is filtered from bounded file ends
 arbitrary SDK error strings, proof data and witness bytes are never forwarded.
 An invalid final report has its own marker. A dependency future-Rust warning
 after a successful build does not identify the cause of a runtime rejection.
-
-## Host Protobuf setup
-
-The two SP1 host jobs run `python3 tools/install_sp1_host.py` without sudo or apt.
-It installs the official standalone Protobuf v21.12 archive (compiler version
-3.21.12) under ignored `build/sp1/protoc-21.12`, with a fixed SHA-256 and bounded
-transient download retries. Both the compiler and its Google `.proto` includes
-are verified against that archive on reuse. Changed bytes, unsafe archives,
-wrong versions and failed downloads stop the gate.
-
-The installer exports `PROTOC`, `PROTOC_INCLUDE` and the compiler PATH through
-GitHub's environment files. SP1's locked `sp1-prover-types` build uses
-Prost/tonic generation; the supplied includes resolve `google/protobuf/empty.proto`
-without apt-installed `libprotobuf-dev`. The runner remains Ubuntu 24.04 and the
-installer remains compatible with its Python 3.12 interpreter. This replaces the
-mirror workaround after both Azure and Canonical archive requests failed; it
-changes no guest, SP1 SDK, proof or measurement requirement.
-
-References: [official compiler installation](https://protobuf.dev/installation/),
-[pinned SP1 generator](https://github.com/succinctlabs/sp1/blob/b8387fa61e1361d90ee7de49f551863418ca0f08/crates/prover-types/build.rs).

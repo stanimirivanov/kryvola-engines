@@ -106,8 +106,10 @@ jobs:
           version: "0.12.5"
       - run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt
       - name: Install SP1 host protobuf prerequisites
-        timeout-minutes: 7
-        run: python3 tools/install_sp1_host.py
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends protobuf-compiler libprotobuf-dev
+          protoc --version
       - run: uv sync --locked
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -130,8 +132,10 @@ jobs:
           version: "0.12.5"
       - run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt
       - name: Install SP1 host protobuf prerequisites
-        timeout-minutes: 7
-        run: python3 tools/install_sp1_host.py
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends protobuf-compiler libprotobuf-dev
+          protoc --version
       - run: uv sync --locked
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:

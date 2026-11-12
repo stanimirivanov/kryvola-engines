@@ -1,6 +1,7 @@
 """Build and inspect a local CPU worker image from a worker-only context."""
 
 import argparse
+import os
 import shutil
 import subprocess
 import tempfile
@@ -13,6 +14,15 @@ FILES = {"kryvola-cpu-engine", "kryvola-cpu-evaluator", "cpu_runner.py", "LICENS
 
 def run(*args: str) -> str:
     return subprocess.check_output(args, cwd=ROOT, text=True).strip()
+
+
+def normalize(context: Path, epoch: int) -> None:
+    if epoch < 0:
+        raise ValueError("INVALID_IMAGE_EPOCH")
+    for name in FILES:
+        path = context / name
+        path.chmod(0o755 if name.startswith("kryvola-cpu-") else 0o644)
+        os.utime(path, (epoch, epoch))
 
 
 def main() -> None:
@@ -33,9 +43,23 @@ def main() -> None:
             (ROOT / "LICENSE", "LICENSE"),
         ):
             shutil.copy2(source, context / name)
+        epoch = os.environ.get("SOURCE_DATE_EPOCH")
+        build_args = []
+        build_command = ["docker", "build"]
+        if epoch is not None:
+            normalize(context, int(epoch))
+            build_command = ["docker", "buildx", "build"]
+            build_args = [
+                "--no-cache",
+                "--provenance=false",
+                "--output",
+                "type=docker,rewrite-timestamp=true",
+                "--build-arg",
+                f"SOURCE_DATE_EPOCH={epoch}",
+            ]
         run(
-            "docker",
-            "build",
+            *build_command,
+            *build_args,
             "--file",
             str(ROOT / "containers/CPU-Engine.Dockerfile"),
             "--tag",

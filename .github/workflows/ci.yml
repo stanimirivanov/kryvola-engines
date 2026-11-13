@@ -107,9 +107,22 @@ jobs:
       stage: sp1-qualification
       guest-artifact-id: ${{ needs.sp1-build.outputs.artifact_id }}
       guest-manifest-sha256: ${{ needs.sp1-build.outputs.manifest_sha256 }}
+  native-reproduction:
+    needs: foundation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.12.5"
+      - run: uv sync --locked
+      - run: uv run --locked python tools/ci.py native-reproduction
   verify:
     if: ${{ always() }}
-    needs: [foundation, owner, tfhe, native-qualification, sp1-build, sp1-measurements, sp1-qualification]
+    needs: [foundation, owner, tfhe, native-qualification, native-reproduction, sp1-build, sp1-measurements, sp1-qualification]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

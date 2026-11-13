@@ -6,6 +6,17 @@ from tools import ci
 
 
 class CiTests(unittest.TestCase):
+    def test_m1_native_reproduction_is_required(self):
+        self.assertIn("native-reproduction", ci.REQUIRED_JOBS)
+        self.assertEqual(
+            ci.COMMANDS["native-reproduction"],
+            ((ci.PYTHON, "tools/native_build.py", "qualify"),),
+        )
+        jobs = {name: {"result": "success"} for name in ci.REQUIRED_JOBS}
+        for status in ("failure", "cancelled", "skipped"):
+            with self.subTest(status=status), self.assertRaises(ValueError):
+                ci.verify(jobs | {"native-reproduction": {"result": status}})
+
     def test_every_required_job_must_succeed(self):
         jobs = {name: {"result": "success"} for name in ci.REQUIRED_JOBS}
         ci.verify(jobs)

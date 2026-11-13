@@ -69,6 +69,7 @@ def main() -> None:
                 "crates/cpu-evaluator/Cargo.toml",
             )
             run(sys.executable, "tools/cpu_boundary.py")
+            run(sys.executable, "tools/native_build.py", "qualify")
             run(sys.executable, "tools/feasibility.py", "tfhe-codec")
             run(sys.executable, "tools/feasibility.py", "tfhe-eval")
             run(sys.executable, "tools/feasibility.py", "tfhe-compact")

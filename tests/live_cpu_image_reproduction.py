@@ -16,8 +16,17 @@ from tools import m1_release
 
 class CpuImageReproductionTests(unittest.TestCase):
     def test_clean_builds_have_equal_actual_configuration_digests(self):
-        engine = package.ROOT / "target/debug/kryvola-cpu-engine"
-        evaluator = package.ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator"
+        engine = Path(
+            os.environ.get(
+                "KRYVOLA_IMAGE_TEST_ENGINE", package.ROOT / "target/debug/kryvola-cpu-engine"
+            )
+        )
+        evaluator = Path(
+            os.environ.get(
+                "KRYVOLA_IMAGE_TEST_EVALUATOR",
+                package.ROOT / "crates/cpu-evaluator/target/release/kryvola-cpu-evaluator",
+            )
+        )
         epoch = package.run("git", "show", "-s", "--format=%ct", "HEAD")
         images = [f"kryvola-reproduction-test:{uuid.uuid4().hex}" for _ in range(3)]
         digests = []

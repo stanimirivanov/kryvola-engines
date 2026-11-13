@@ -27,12 +27,15 @@ class NativeReleaseInputTests(unittest.TestCase):
 
             with (
                 patch.object(m1, "OUTPUT", candidate),
+                patch.object(m1.release, "TOOLS", root / "uninstalled-release-tools"),
+                patch.object(m1.release, "tool", return_value=root / "fixture-syft") as tool,
                 patch.object(m1.release, "run", side_effect=external),
                 patch.object(m1, "image_identity", return_value="0" * 64),
                 patch.object(m1, "image_check") as image_check,
                 patch.object(m1.owner_wheel, "install_and_test") as installed,
             ):
                 m1.assemble("a" * 40, {}, artifacts)
+            tool.assert_called_once_with("syft")
             self.assertEqual(installed.call_args.args[0], wheel)
             contents = m1.unpack(candidate / "cpu-runtime.tar", m1.CPU_FILES, 128 << 20)
             self.assertEqual(contents["kryvola-cpu-engine"], b"isolated engine")
